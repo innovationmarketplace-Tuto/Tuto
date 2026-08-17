@@ -1,0 +1,12 @@
+{
+  "app": "npx tsx bin/coordinate-test.ts",
+  "watch": {
+    "include": ["bin/**/*.ts", "lib/**/*.ts", "src/**/*.ts"],
+    "exclude": ["README.md", "test/**/*.ts"]
+  },
+  "context": {
+    "@aws-cdk/aws-apigateway:usagePlanKeyOrderInsensitiveId": true,
+    "@aws-cdk/core:enablePathMetadata": false,
+    "@aws-cdk/core:stackRelativeExports": true
+  }
+}

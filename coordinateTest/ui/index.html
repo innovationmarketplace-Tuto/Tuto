@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#10151d" />
+    <title>Coordinate Test</title>
+  </head>
+  <body>
+    <main class="shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">TUTO / COORDINATE SPIKE</p>
+          <h1>See the page. Keep the geometry.</h1>
+          <p class="lede">BDA supplies inspectable text geometry. Nova transcribes visible page content and links it to region IDs.</p>
+        </div>
+        <div class="status-pill"><span class="status-dot"></span><span id="statusText">Ready</span></div>
+      </header>
+
+      <section class="controls card">
+        <div class="control-row">
+          <label class="file-drop" id="dropZone">
+            <input id="imageInput" type="file" accept="image/jpeg,image/png,image/webp,image/gif" />
+            <span class="file-icon">＋</span>
+            <span><strong id="fileLabel">Choose a notebook photo</strong><small>JPEG, PNG, WebP or GIF</small></span>
+          </label>
+          <label class="endpoint-field">
+            <span>Hosted API endpoint</span>
+            <input id="endpointInput" type="url" placeholder="https://....execute-api....amazonaws.com/analyze" />
+          </label>
+        </div>
+        <div class="control-row lower-row">
+          <label class="question-field">
+            <span>Optional extraction focus</span>
+            <input id="questionInput" type="text" value="Transcribe everything visible on this page." />
+          </label>
+            <button class="primary-button" id="analyzeButton" type="button">Analyze page <span>→</span></button>
+        </div>
+      </section>
+
+      <section class="workspace">
+        <div class="viewer card">
+          <div class="section-heading"><span>Canonical page</span><span class="muted" id="imageMeta">No image yet</span></div>
+          <div class="image-stage" id="imageStage">
+            <div class="empty-state" id="emptyState"><div class="empty-mark">◎</div><p>Drop a notebook photo here</p><small>The displayed image is the same canonical image sent to BDA and Nova.</small></div>
+            <div class="image-frame" id="imageFrame" hidden>
+              <img id="pageImage" alt="Canonical notebook page" />
+              <svg id="overlay" class="overlay" viewBox="0 0 1 1" preserveAspectRatio="none" aria-label="Annotation overlay">
+                <defs>
+                  <marker id="arrowHead" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#ff765f" /></marker>
+                </defs>
+              </svg>
+            </div>
+          </div>
+          <div class="legend"><span><i class="legend-swatch line"></i>BDA line</span><span><i class="legend-swatch word"></i>BDA word</span><span><i class="legend-swatch annotation"></i>Nova annotation</span></div>
+        </div>
+
+        <aside class="inspector card">
+          <div class="section-heading"><span>Inspector</span><span class="muted" id="requestId">—</span></div>
+          <div id="emptyInspector" class="inspector-empty">Run an analysis to inspect the coordinate round-trip.</div>
+          <div id="resultInspector" hidden>
+            <div class="tutor-label">LaTeX transcription</div>
+            <pre class="tutor-message" id="tutorMessage"></pre>
+            <div class="metrics" id="metrics"></div>
+            <div class="warning-list" id="warnings"></div>
+            <h2>Artifacts</h2>
+            <div id="annotations" class="annotation-list"></div>
+            <h2>Detected page artifacts</h2>
+            <div id="regions" class="region-list"></div>
+            <details class="json-panel">
+              <summary>Full document JSON</summary>
+              <pre id="jsonOutput"></pre>
+            </details>
+          </div>
+        </aside>
+      </section>
+
+      <footer><span>API-only AWS footprint: HTTP API + Lambda + BDA project.</span><a href="https://docs.aws.amazon.com/bedrock/latest/userguide/bda-using-api.html" target="_blank" rel="noreferrer">BDA API docs ↗</a><a href="https://docs.aws.amazon.com/nova/latest/nova2-userguide/prompting-multimodal.html" target="_blank" rel="noreferrer">Nova boxes ↗</a></footer>
+    </main>
+    <script type="module" src="/main.ts"></script>
+  </body>
+</html>

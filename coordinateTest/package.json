@@ -1,0 +1,38 @@
+{
+  "name": "coordinate-test",
+  "private": true,
+  "type": "module",
+  "version": "0.1.0",
+  "packageManager": "pnpm@11.22.0",
+  "scripts": {
+    "build": "pnpm build:ui && pnpm build:infra",
+    "build:ui": "vite build",
+    "build:infra": "tsc --noEmit",
+    "dev": "vite --host 127.0.0.1",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test test/**/*.test.ts",
+    "cdk": "cdk",
+    "synth": "cdk synth",
+    "deploy": "cdk deploy --outputs-file cdk-outputs.json",
+    "destroy": "cdk destroy",
+    "request": "bash scripts/request.sh"
+  },
+  "dependencies": {
+    "@aws-sdk/client-bedrock-data-automation-runtime": "^3.1111.0",
+    "@aws-sdk/client-bedrock-runtime": "^3.883.0",
+    "@img/sharp-libvips-linux-x64": "^1.2.4",
+    "@img/sharp-linux-x64": "^0.34.5",
+    "aws-cdk-lib": "^2.215.0",
+    "constructs": "^10.4.2",
+    "sharp": "^0.34.3"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.152",
+    "@types/node": "^22.15.30",
+    "aws-cdk": "^2.215.0",
+    "esbuild": "^0.25.5",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3",
+    "vite": "^6.3.5"
+  }
+}
