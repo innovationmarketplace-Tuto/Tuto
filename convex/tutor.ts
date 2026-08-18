@@ -615,9 +615,14 @@ export const complete = internalMutation({
       const payload = proposalPayload(resolution, String(studentMessage._id), args.ownerUserId, completedAt);
       if (!payload) continue;
       const proposalId = await (ctx.db as any).insert("skillProposals", payload);
+      // The skill itself goes active immediately so evidence can accrue on it
+      // starting next turn and the resolver can match it again instead of
+      // creating a duplicate proposal every time this topic recurs. The
+      // skillProposals row above stays "pending" as the human-review audit
+      // trail; this only removes the review *gate*, not the review record.
       const provisionalSkillId = await (ctx.db as any).insert("skills", {
         namespace: payload.namespace,
-        status: "proposed",
+        status: "active",
         name: payload.suggestedName,
         objective: payload.objective,
         subject: payload.subject,

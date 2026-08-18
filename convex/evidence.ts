@@ -102,7 +102,9 @@ export const record = mutation({
     if (!skill || (skill.status !== "active" && skill.status !== "proposed")) throw new Error("Skill not found or inactive");
     if (args.provisionalSkillId !== undefined) {
       const provisional = await (ctx.db as any).get(args.provisionalSkillId);
-      if (!provisional || provisional.status !== "proposed") throw new Error("Provisional skill is invalid");
+      if (!provisional || (provisional.status !== "proposed" && provisional.status !== "active")) {
+        throw new Error("Provisional skill is invalid");
+      }
     }
     if (args.idempotencyKey) {
       const existing = await (ctx.db as any).query("learningEvidence").withIndex("by_owner_and_idempotency", (q: any) => q.eq("ownerUserId", userId).eq("idempotencyKey", args.idempotencyKey)).unique();
