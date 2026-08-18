@@ -47,12 +47,13 @@ export const generate = internalAction({
       const selection = selectTutorProvider(process.env);
       const output = await selection.model.generateTurn(input);
       // Metadata is operational and intentionally sits outside the strict
-      // tutor result contract; validate only the four learner-facing fields.
+      // tutor result contract; validate only the learner-facing fields.
       const validated = validateTutorResult({
         reply: output.reply,
         skillResolutions: output.skillResolutions,
         candidateEvidence: output.candidateEvidence,
         annotations: output.annotations,
+        learnerFacts: output.learnerFacts,
       }, input);
       return await (ctx as any).runMutation(completeRef, {
         ownerUserId: args.ownerUserId,

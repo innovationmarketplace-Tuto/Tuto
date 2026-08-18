@@ -48,6 +48,7 @@ test("Bedrock tutor sends canonical worksheet bytes as a multimodal image block"
                 skillResolutions: [],
                 candidateEvidence: [],
                 annotations: [],
+                learnerFacts: [],
               }),
             }],
           },

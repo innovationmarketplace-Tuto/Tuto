@@ -185,6 +185,7 @@ test("server durable facts survive prepare, prompt projection, and Bedrock reque
                 skillResolutions: [],
                 candidateEvidence: [],
                 annotations: [],
+                learnerFacts: [],
               }),
             }],
           },

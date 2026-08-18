@@ -58,6 +58,16 @@ export const MAX_TUTOR_LEARNER_FACTS = 20 as const;
 export const MAX_TUTOR_LEARNER_FACT_KEY_LENGTH = 120 as const;
 export const MAX_TUTOR_LEARNER_FACT_VALUE_LENGTH = 1_000 as const;
 
+/**
+ * A durable fact the tutor model proposes about the learner (background,
+ * preferences, goals) from a single turn. Distinct from `candidateEvidence`,
+ * which is skill-mastery observation, not learner-identity context.
+ */
+export type CandidateLearnerFact = Pick<LearnerFact, "key" | "value" | "confidence">;
+
+/** Bounds for the facts a single tutor turn may propose. */
+export const MAX_TUTOR_CANDIDATE_FACTS = 8 as const;
+
 export type EpisodicSummary = {
   id: string;
   studentId: string;

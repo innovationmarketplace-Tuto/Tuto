@@ -11,7 +11,7 @@ import type { PageRegion } from "./regions";
 import type { ArtifactPage } from "./artifacts";
 import type { TutorAnnotation } from "./annotations";
 import type { CandidateLearningEvidence } from "./evidence";
-import type { StudentSkillState } from "./memory";
+import type { CandidateLearnerFact, StudentSkillState } from "./memory";
 import type { SkillResolution } from "./skills";
 
 export type TutorTurnInput = {
@@ -67,6 +67,7 @@ export type TutorTurnResult = {
   skillResolutions: SkillResolution[];
   candidateEvidence: CandidateLearningEvidence[];
   annotations: TutorAnnotation[];
+  learnerFacts: CandidateLearnerFact[];
 };
 
 export type TutorRecentMessage = {

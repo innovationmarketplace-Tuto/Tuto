@@ -127,6 +127,7 @@ test("Bedrock adapter replaces blank annotation IDs without discarding a valid r
               skillResolutions: [],
               candidateEvidence: [],
               annotations: [{ id: "", pageId: "page-wall", targetRegionId: "wall-problem", messageId: "", kind: "highlight" }],
+              learnerFacts: [],
             }),
           }],
         },

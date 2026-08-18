@@ -7,6 +7,7 @@ import {
 import { makeFunctionReference } from "convex/server";
 import { v } from "convex/values";
 import {
+  MAX_TUTOR_CANDIDATE_FACTS,
   MAX_TUTOR_LEARNER_FACTS,
   MAX_TUTOR_LEARNER_FACT_KEY_LENGTH,
   MAX_TUTOR_LEARNER_FACT_VALUE_LENGTH,
@@ -684,6 +685,48 @@ export const complete = internalMutation({
       await projectAndPersist(ctx, turn.studentId, skill._id, completedAt);
     }
 
+    const candidateFacts = Array.isArray(raw?.learnerFacts) ? raw.learnerFacts.slice(0, MAX_TUTOR_CANDIDATE_FACTS) : [];
+    const persistedFacts: any[] = [];
+    for (const candidate of candidateFacts) {
+      if (!candidate || typeof candidate !== "object") continue;
+      const key = typeof candidate.key === "string"
+        ? candidate.key.trim().slice(0, MAX_TUTOR_LEARNER_FACT_KEY_LENGTH)
+        : "";
+      const value = typeof candidate.value === "string"
+        ? candidate.value.trim().slice(0, MAX_TUTOR_LEARNER_FACT_VALUE_LENGTH)
+        : "";
+      const confidence = Number(candidate.confidence);
+      if (!key || !value || !Number.isFinite(confidence) || confidence < 0 || confidence > 1) continue;
+      const existing = await (ctx.db as any)
+        .query("learnerFacts")
+        .withIndex("by_student_and_key", (q: any) => q.eq("studentId", turn.studentId).eq("key", key))
+        .unique();
+      if (existing) {
+        // A fact edited by the student or a human reviewer must not be
+        // silently overwritten by a model-proposed observation.
+        if (existing.ownerUserId !== args.ownerUserId || !existing.editable) continue;
+        await (ctx.db as any).patch(existing._id, {
+          value,
+          source: "tutor",
+          confidence,
+          updatedAt: completedAt,
+        });
+      } else {
+        await (ctx.db as any).insert("learnerFacts", {
+          studentId: turn.studentId,
+          ownerUserId: args.ownerUserId,
+          key,
+          value,
+          source: "tutor",
+          confidence,
+          editable: true,
+          createdAt: completedAt,
+          updatedAt: completedAt,
+        });
+      }
+      persistedFacts.push({ key, value, confidence });
+    }
+
     const persistedAnnotations: any[] = [];
     if (studentMessage.pageId && studentMessage.pageRevision !== undefined) {
       const page = await (ctx.db as any).get(studentMessage.pageId);
@@ -758,6 +801,7 @@ export const complete = internalMutation({
       skillResolutions,
       candidateEvidence,
       annotations: persistedAnnotations,
+      learnerFacts: persistedFacts,
       ...(proposalIds.length > 0 ? { proposalIds } : {}),
       ...(normalizeTutorMetadata(raw?.metadata) ? { metadata: normalizeTutorMetadata(raw.metadata) } : {}),
     };

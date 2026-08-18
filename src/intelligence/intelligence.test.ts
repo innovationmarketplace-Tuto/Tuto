@@ -115,7 +115,7 @@ test("OpenAI adapter defaults to low reasoning effort and omits temperature", as
     model: "test-model",
     chat: async (req) => {
       request = req;
-      return { choices: [{ message: { content: JSON.stringify({ reply: "ok", skillResolutions: [], candidateEvidence: [], annotations: [] }) } }] };
+      return { choices: [{ message: { content: JSON.stringify({ reply: "ok", skillResolutions: [], candidateEvidence: [], annotations: [], learnerFacts: [] }) } }] };
     },
   });
   await model.generateTurn(tutorInput("maya"));

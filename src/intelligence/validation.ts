@@ -1,6 +1,11 @@
 import type {
   CandidateLearningEvidence,
 } from "../domain/evidence";
+import {
+  MAX_TUTOR_LEARNER_FACT_KEY_LENGTH,
+  MAX_TUTOR_LEARNER_FACT_VALUE_LENGTH,
+  type CandidateLearnerFact,
+} from "../domain/memory";
 import type { NewSkillProposal, SkillResolution } from "../domain/skills";
 import type { TutorAnnotation } from "../domain/annotations";
 import type { TutorTurnResult } from "../domain/tutoring";
@@ -154,6 +159,17 @@ function evidence(value: unknown, index: number): CandidateLearningEvidence {
   };
 }
 
+function learnerFact(value: unknown, index: number): CandidateLearnerFact {
+  const field = `learnerFacts[${index}]`;
+  if (!isObject(value)) throw new StructuredOutputError(`${field} must be an object.`);
+  assertOnlyKeys(value, ["key", "value", "confidence"], field);
+  return {
+    key: requiredString(value.key, `${field}.key`, MAX_TUTOR_LEARNER_FACT_KEY_LENGTH),
+    value: requiredString(value.value, `${field}.value`, MAX_TUTOR_LEARNER_FACT_VALUE_LENGTH),
+    confidence: confidence(value.confidence, `${field}.confidence`),
+  };
+}
+
 function annotation(value: unknown, index: number, input: TutorModelInput): TutorAnnotation {
   const field = `annotations[${index}]`;
   if (!isObject(value)) throw new StructuredOutputError(`${field} must be an object.`);
@@ -191,10 +207,11 @@ function annotation(value: unknown, index: number, input: TutorModelInput): Tuto
  */
 export function validateTutorResult(value: unknown, input: TutorModelInput): TutorTurnResult {
   if (!isObject(value)) throw new StructuredOutputError("Tutor output must be a JSON object.");
-  assertOnlyKeys(value, ["reply", "skillResolutions", "candidateEvidence", "annotations"], "Tutor output");
+  assertOnlyKeys(value, ["reply", "skillResolutions", "candidateEvidence", "annotations", "learnerFacts"], "Tutor output");
   const skillResolutionsValue = value.skillResolutions;
   const candidateEvidenceValue = value.candidateEvidence;
   const annotationsValue = value.annotations;
+  const learnerFactsValue = value.learnerFacts;
   if (!Array.isArray(skillResolutionsValue) || skillResolutionsValue.length > 16) {
     throw new StructuredOutputError("skillResolutions must be an array with at most 16 items.");
   }
@@ -204,11 +221,15 @@ export function validateTutorResult(value: unknown, input: TutorModelInput): Tut
   if (!Array.isArray(annotationsValue) || annotationsValue.length > 16) {
     throw new StructuredOutputError("annotations must be an array with at most 16 items.");
   }
+  if (!Array.isArray(learnerFactsValue) || learnerFactsValue.length > 8) {
+    throw new StructuredOutputError("learnerFacts must be an array with at most 8 items.");
+  }
   return {
     reply: requiredString(value.reply, "reply", 8_000),
     skillResolutions: skillResolutionsValue.map(resolution),
     candidateEvidence: candidateEvidenceValue.map(evidence),
     annotations: annotationsValue.map((item, index) => annotation(item, index, input)),
+    learnerFacts: learnerFactsValue.map(learnerFact),
   };
 }
 

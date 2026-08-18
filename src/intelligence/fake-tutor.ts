@@ -156,6 +156,7 @@ export class FakeTutorModel implements TutorModel {
       skillResolutions: fakeResolutions(input),
       candidateEvidence: fakeEvidence(input),
       annotations: fakeAnnotations(input),
+      learnerFacts: [],
     };
     // Validate the fake too: it is the executable contract fixture for every
     // other provider and must never teach callers to accept malformed output.

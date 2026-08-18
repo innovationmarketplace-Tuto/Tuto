@@ -119,6 +119,7 @@ function normalizeModelPayload(value: unknown, input: TutorModelInput): unknown 
     skillResolutions: nested.skillResolutions,
     candidateEvidence: nested.candidateEvidence,
     annotations,
+    learnerFacts: nested.learnerFacts,
   };
 }
 
@@ -196,6 +197,7 @@ export class BedrockTutorModel implements TutorModel {
       skillResolutions: fake.skillResolutions,
       candidateEvidence: fake.candidateEvidence,
       annotations: fake.annotations,
+      learnerFacts: fake.learnerFacts,
     }, fallbackMetadata);
   }
 
