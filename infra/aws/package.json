@@ -1,0 +1,26 @@
+{
+  "name": "@tuto/aws-infrastructure",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.22.0",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test test/**/*.test.ts",
+    "synth": "cdk synth",
+    "diff": "cdk diff",
+    "deploy": "cdk deploy --outputs-file cdk-outputs.json --require-approval broadening",
+    "destroy": "cdk destroy",
+    "check": "pnpm typecheck && pnpm test && pnpm synth"
+  },
+  "dependencies": {
+    "aws-cdk-lib": "2.265.0",
+    "constructs": "10.8.1"
+  },
+  "devDependencies": {
+    "@types/node": "22.15.30",
+    "aws-cdk": "2.1137.0",
+    "tsx": "4.19.4",
+    "typescript": "5.8.3"
+  }
+}

@@ -4,11 +4,11 @@
  */
 
 import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
 
 export function useTheme() {
-  const scheme = useColorScheme();
-  const theme = scheme === 'unspecified' ? 'light' : scheme;
-
-  return Colors[theme];
+  // The product shell currently has a deliberately light visual system (its
+  // page canvas, side rail, and semantic status colors are light-theme assets).
+  // Keep the hook as the theme seam without mixing dark text tokens into
+  // hard-coded light surfaces when the OS prefers dark mode.
+  return Colors.light;
 }

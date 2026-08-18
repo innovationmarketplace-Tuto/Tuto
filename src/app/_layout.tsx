@@ -1,18 +1,27 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
-import { useColorScheme } from 'react-native';
+import { ConvexReactClient } from 'convex/react';
+import { Stack } from 'expo-router';
 
-import { AnimatedSplashOverlay } from '@/components/animated-icon';
-import AppTabs from '@/components/app-tabs';
+import { Colors } from '@/constants/theme';
+import { ConvexAuthProvider } from '@/features/auth/auth-boundary';
 
-SplashScreen.preventAutoHideAsync();
+const convexUrl = process.env.EXPO_PUBLIC_CONVEX_URL;
+if (!convexUrl) throw new Error('EXPO_PUBLIC_CONVEX_URL is required');
+const convex = new ConvexReactClient(convexUrl);
 
-export default function TabLayout() {
-  const colorScheme = useColorScheme();
+export default function RootLayout() {
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <AnimatedSplashOverlay />
-      <AppTabs />
-    </ThemeProvider>
+    <ConvexAuthProvider client={convex}>
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { backgroundColor: Colors.light.background },
+        }}>
+        <Stack.Screen name="index" />
+        <Stack.Screen name="chat" />
+        <Stack.Screen name="worksheet" />
+        <Stack.Screen name="learners" />
+        <Stack.Screen name="sign-in" />
+      </Stack>
+    </ConvexAuthProvider>
   );
 }

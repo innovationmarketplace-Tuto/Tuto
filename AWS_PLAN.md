@@ -1,7 +1,7 @@
 # Tuto AWS Integration Plan
 
 Last updated: 2026-08-17  
-Status: Proposed AWS-specific runbook
+Status: Development infrastructure provisioned; production rollout remains gated
 
 ## Purpose and scope
 
@@ -19,6 +19,11 @@ Provider-independent product behavior, spatial contracts, learner memory, team o
 - Add an optional multimodal model pass only for mathematical interpretation and grouping detected regions into problems and steps. It must not invent UI coordinates.
 - Use asynchronous BDA with S3 only if the sync spike fails or the MVP retains multi-page PDF processing.
 - Keep application identity, authorization, files, learner memory, and orchestration in Convex. Do not add Cognito, Lambda, API Gateway, or DynamoDB for the initial path.
+- **Implemented:** [`infra/aws/`](infra/aws/README.md) deploys the accepted
+  application boundary as `TutoAwsStack`: one synchronous BDA project, one
+  restricted Convex workload identity/policy, and one monthly cost budget. It
+  deliberately omits the spike's Lambda and API Gateway and never creates an
+  access key in CloudFormation.
 
 AWS documentation currently describes both synchronous document limits and a sync API restriction to image processing. Because those pages are inconsistent, compatibility with a scanned handwritten-page JPEG is a mandatory spike, not an assumption. The accepted implementation is sync only after it passes the fixture gate below.
 
@@ -121,6 +126,12 @@ Cost budget warning: <team-selected amount>
 Cost budget critical: <team-selected amount>
 AWS owner: <name>
 ```
+
+The development stack is deployed in `us-west-2`. Its generated project/profile
+ARNs and approved Nova model ID are stored as Convex development environment
+configuration. The workload has one active access key stored only in Convex;
+provider smoke tests passed through that least-privilege policy. Budget contact
+details remain a NoEcho CloudFormation parameter and are not committed here.
 
 Budgets are alerts, not hard spending caps. The backend must also have a kill switch, idempotency, and per-user scan limits.
 

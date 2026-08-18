@@ -2,6 +2,7 @@
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true,
+    "types": ["node"],
     "paths": {
       "@/*": [
         "./src/*"
@@ -19,6 +20,7 @@
   ],
   "exclude": [
     "node_modules",
-    "coordinateTest"
+    "coordinateTest",
+    "infra/aws"
   ]
 }

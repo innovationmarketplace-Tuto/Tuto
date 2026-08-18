@@ -1,0 +1,12 @@
+{
+  "app": "npx tsx bin/tuto-aws.ts",
+  "watch": {
+    "include": ["bin/**/*.ts", "lib/**/*.ts"],
+    "exclude": ["README.md", "test/**/*.ts"]
+  },
+  "context": {
+    "@aws-cdk/core:enablePathMetadata": false,
+    "@aws-cdk/core:stackRelativeExports": true
+  }
+}
+
