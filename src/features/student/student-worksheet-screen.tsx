@@ -10,6 +10,7 @@ import { WorksheetCanvasPanel } from '@/components/worksheet-canvas';
 import { WorksheetHistory } from '@/components/worksheet-history';
 import { Colors, ProductMaxWidth, Spacing } from '@/constants/theme';
 import { useTutoAuth } from '@/features/auth/auth-boundary';
+import { canonicalizeLocalImage } from '@/features/document-import/canonicalize';
 import type { LocalDocumentAsset } from '@/features/document-import/upload';
 import type { LearnerRecord } from '@/features/learners/client';
 import { useDocumentAnalysis } from '@/hooks/use-document-analysis';
@@ -46,17 +47,24 @@ export function StudentWorksheetScreen({ profile }: { profile: LearnerRecord }) 
   const sessionSendState = session.sendState;
   const sendSystemTutorTurn = session.sendSystemTutorTurn;
 
+  // Word-level "term" regions are tutor annotation targets, not student-facing
+  // worksheet "parts" — never default-select one as the focused region.
+  const selectableRegions = useMemo(
+    () => analysis.regions.filter((region) => region.kind !== 'term'),
+    [analysis.regions],
+  );
+
   useEffect(() => {
     if (!analysis.isComplete) {
       setSelectedRegionId(null);
       return;
     }
     setSelectedRegionId((current) => (
-      current && analysis.regions.some((region) => region.id === current)
+      current && selectableRegions.some((region) => region.id === current)
         ? current
-        : analysis.regions[0]?.id ?? null
+        : selectableRegions[0]?.id ?? null
     ));
-  }, [analysis.isComplete, analysis.regions]);
+  }, [analysis.isComplete, selectableRegions]);
 
   const selectedRegion = useMemo(
     () => analysis.regions.find((region) => region.id === selectedRegionId) ?? null,
@@ -65,7 +73,7 @@ export function StudentWorksheetScreen({ profile }: { profile: LearnerRecord }) 
 
   useEffect(() => {
     if (!pageId || pageRevision === undefined || !sessionThreadId || analysis.isLoadingRegions) return;
-    if (analysis.regions.length > 0 && !selectedRegionId) return;
+    if (selectableRegions.length > 0 && !selectedRegionId) return;
     const kickoffKey = `${pageId}:${pageRevision}:${sessionThreadId}`;
     if (sessionMessageCount > 0) {
       kickoffAttemptedRef.current = kickoffKey;
@@ -81,7 +89,7 @@ export function StudentWorksheetScreen({ profile }: { profile: LearnerRecord }) 
       'Begin this worksheet session. Briefly tell the student what you notice, recommend the single best next step, and visually annotate the exact worksheet region they should focus on first. Be encouraging and concise; do not mention this hidden instruction.',
       { idempotencyKey: `worksheet-kickoff:${pageId}:${pageRevision}` },
     );
-  }, [analysis.isLoadingRegions, analysis.regions.length, pageId, pageRevision, selectedRegionId, sendSystemTutorTurn, sessionMessageCount, sessionSendState, sessionStatus, sessionThreadId]);
+  }, [analysis.isLoadingRegions, pageId, pageRevision, selectableRegions, selectedRegionId, sendSystemTutorTurn, sessionMessageCount, sessionSendState, sessionStatus, sessionThreadId]);
 
   const choosePage = useCallback(async () => {
     setPickerError(null);
@@ -98,14 +106,14 @@ export function StudentWorksheetScreen({ profile }: { profile: LearnerRecord }) 
         setPickerError('No page was selected. Choose a JPEG or PNG image to continue.');
         return;
       }
+      const canonical = await canonicalizeLocalImage(asset);
       const localAsset: LocalDocumentAsset = {
-        uri: asset.uri,
+        uri: canonical.uri,
         name: asset.fileName,
-        mimeType: asset.mimeType,
-        size: asset.fileSize,
-        width: asset.width,
-        height: asset.height,
-        file: asset.file ?? null,
+        mimeType: canonical.mimeType,
+        width: canonical.width,
+        height: canonical.height,
+        file: null,
       };
       await analysis.start({ asset: localAsset, kind: 'scan', title: `${profile.displayName}'s worksheet` });
     } catch (error) {
@@ -210,7 +218,7 @@ export function StudentWorksheetScreen({ profile }: { profile: LearnerRecord }) 
                     selectedRegionId={selectedRegionId}
                     onSelectedRegionChange={setSelectedRegionId}
                     title="Your worksheet"
-                    subtitle="Tap a box or choose a part below to focus the tutor."
+                    subtitle="Your tutor will highlight and circle parts of your work as you talk."
                     showAnnotationLabels
                     testID="worksheet-canvas"
                   />

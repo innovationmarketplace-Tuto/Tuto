@@ -3,6 +3,7 @@ export { buildTutorTurnPrompt, TUTOR_OUTPUT_JSON_SCHEMA } from "./prompt";
 export * from "./validation";
 export * from "./fake-tutor";
 export * from "./bedrock-tutor";
+export * from "./openai-tutor";
 export * from "./fake-document-analyzer";
 export * from "./bda-geometry";
 export * from "./bda-adapter";

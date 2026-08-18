@@ -695,11 +695,29 @@ export const complete = internalMutation({
           .collect();
         for (const annotation of requestedAnnotations) {
           if (!annotation || typeof annotation !== "object") continue;
-          if (annotation.pageId && String(annotation.pageId) !== String(page._id)) continue;
+          if (annotation.pageId && String(annotation.pageId) !== String(page._id)) {
+            console.warn(
+              `[tutor:annotation] turn ${String(turn._id)} dropped annotation: pageId "${String(annotation.pageId)}" ` +
+              `does not match message page "${String(page._id)}".`,
+            );
+            continue;
+          }
           const target = regions.find((region: any) => String(region._id) === String(annotation.targetRegionId));
-          if (!target) continue;
+          if (!target) {
+            console.warn(
+              `[tutor:annotation] turn ${String(turn._id)} dropped annotation: targetRegionId ` +
+              `"${String(annotation.targetRegionId)}" not found among ${regions.length} region(s) for page ` +
+              `${String(page._id)} revision ${studentMessage.pageRevision}.`,
+            );
+            continue;
+          }
           const kind = asAnnotationKind(annotation.kind);
-          if (!kind) continue;
+          if (!kind) {
+            console.warn(
+              `[tutor:annotation] turn ${String(turn._id)} dropped annotation: unsupported kind "${String(annotation.kind)}".`,
+            );
+            continue;
+          }
           const id = await (ctx.db as any).insert("tutorAnnotations", {
             pageId: page._id,
             pageRevision: studentMessage.pageRevision,
@@ -718,7 +736,17 @@ export const complete = internalMutation({
             ...(annotation.label ? { label: String(annotation.label).slice(0, 500) } : {}),
           });
         }
+      } else if (requestedAnnotations.length > 0) {
+        console.warn(
+          `[tutor:annotation] turn ${String(turn._id)} dropped ${requestedAnnotations.length} annotation(s): ` +
+          `page ${String(studentMessage.pageId)} was missing or not owned by this student/owner.`,
+        );
       }
+    } else if (requestedAnnotations.length > 0) {
+      console.warn(
+        `[tutor:annotation] turn ${String(turn._id)} dropped ${requestedAnnotations.length} annotation(s): ` +
+        "student message has no pageId/pageRevision, so annotations cannot be resolved for this turn.",
+      );
     }
     if (persistedAnnotations.length > 0) {
       await (ctx.db as any).patch(tutorMessageId, {

@@ -1,6 +1,6 @@
 import type { DocumentAnalysisInput, DocumentAnalyzer, AnalyzedPage } from "./contracts";
 import { DOCUMENT_ANALYZER_ADAPTER_VERSION } from "./contracts";
-import { detectedTranscription, regionsFromBda } from "./bda-geometry";
+import { describeBdaPayloadShape, detectedTranscription, regionsFromBda } from "./bda-geometry";
 import { fallbackLatex, NovaSemanticMapper, type NovaSemanticMapperConfig, type NovaSemanticMapperLike } from "./nova-mapper";
 import { groupPageRegions } from "./region-grouping";
 
@@ -30,6 +30,20 @@ function bytesFromBase64(value: string): Uint8Array {
   if (!decode) throw new Error("Base64 decoding is unavailable in this runtime.");
   const binary = decode(value);
   return Uint8Array.from(binary, (character) => character.charCodeAt(0));
+}
+
+/** Summarize a raw BDA response's shape for logs without dumping full OCR text. */
+function describeRawShape(raw: unknown): string {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return `typeof=${typeof raw}`;
+  const record = raw as Record<string, unknown>;
+  const segments = Array.isArray(record.outputSegments) ? record.outputSegments : [];
+  const segmentShapes = segments.map((segment) => {
+    const item = (segment && typeof segment === "object" ? segment : {}) as Record<string, unknown>;
+    const standardOutput = typeof item.standardOutput === "string" ? item.standardOutput.length : undefined;
+    const customOutput = typeof item.customOutput === "string" ? item.customOutput.length : undefined;
+    return `{standardOutputChars=${standardOutput ?? "none"}, customOutputChars=${customOutput ?? "none"}}`;
+  });
+  return `topLevelKeys=[${Object.keys(record).join(",")}] outputSegments=[${segmentShapes.join(", ")}]`;
 }
 
 function imageBytes(input: DocumentAnalysisInput): Uint8Array {
@@ -103,6 +117,9 @@ export class AwsBdaDocumentAnalyzer implements DocumentAnalyzer {
 
   async analyze(input: DocumentAnalysisInput): Promise<AnalyzedPage[]> {
     const started = Date.now();
+    // The client canonicalizes (EXIF-rotates, resizes, re-encodes) every
+    // page before upload, so the bytes reaching this action already match
+    // what BDA's OCR needs to see. See src/features/document-import/canonicalize.ts.
     const bytes = imageBytes(input);
     if (bytes.byteLength > MAX_SYNC_IMAGE_BYTES) throw new Error("Canonical image exceeds the 5 MB synchronous BDA limit.");
     const raw = await (await this.invoke())({
@@ -112,9 +129,15 @@ export class AwsBdaDocumentAnalyzer implements DocumentAnalyzer {
       bytes,
     });
     const geometry = regionsFromBda(raw, { pageId: input.page.id, revision: input.page.revision });
+    if (geometry.lineCount === 0 && geometry.wordCount === 0) {
+      console.warn(
+        `[bda:geometry] page ${input.page.id} revision ${input.page.revision} had no line/word geometry. ` +
+        `Raw BDA response shape: ${describeRawShape(raw)}. Parsed standard-output shape: ${describeBdaPayloadShape(raw)}`,
+      );
+      throw new Error("BDA returned no readable text geometry for this page.");
+    }
     let regions = groupPageRegions(geometry.regions);
     const warnings: string[] = [];
-    if (geometry.lineCount === 0 && geometry.wordCount === 0) warnings.push("BDA returned no line or word geometry; the page fallback region was retained.");
     let transcription = detectedTranscription(regions);
     let latex = fallbackLatex(transcription);
     let annotations = [] as AnalyzedPage["annotations"];

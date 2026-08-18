@@ -81,7 +81,7 @@ export type TutorUsage = {
 };
 
 export type TutorCallMetadata = {
-  provider: "fake" | "bedrock";
+  provider: "fake" | "bedrock" | "openai";
   model: string;
   latencyMs: number;
   usage?: TutorUsage;

@@ -82,7 +82,10 @@ export function WorksheetCanvas({
   onAnnotationPress,
   regionLabel = defaultRegionLabel,
   annotationLabel = defaultAnnotationLabel,
-  showRegions = true,
+  // Detected regions are geometry for the tutor to target with annotations,
+  // not a student-facing feature; only actual tutor annotations should draw
+  // a box/circle/highlight unless a caller opts into the region-picker UI.
+  showRegions = false,
   showAnnotations = true,
   showAnnotationLabels = true,
   maxWidth = 1200,
@@ -100,6 +103,13 @@ export function WorksheetCanvas({
   const pageRegions = useMemo(
     () => regions.filter((region) => region.pageId === page.id),
     [page.id, regions],
+  );
+  // Word-level "term" regions exist so the tutor can target a single word
+  // with a highlight/circle annotation, not for a student to tap through as
+  // a worksheet "part" — keep them out of the selectable box/list layer.
+  const selectableRegions = useMemo(
+    () => pageRegions.filter((region) => region.kind !== 'term'),
+    [pageRegions],
   );
   const regionById = useMemo(
     () => new Map(pageRegions.map((region) => [region.id, region])),
@@ -132,13 +142,15 @@ export function WorksheetCanvas({
       testID={testID}
       style={[styles.canvas, { aspectRatio: pageRatio, maxWidth }, style]}
     >
-      <Image
-        accessible
-        accessibilityLabel={accessibilityLabel}
-        contentFit="contain"
-        source={page.imageUrl}
-        style={styles.image}
-      />
+      <View pointerEvents="none" style={styles.imageClip}>
+        <Image
+          accessible
+          accessibilityLabel={accessibilityLabel}
+          contentFit="contain"
+          source={page.imageUrl}
+          style={styles.image}
+        />
+      </View>
 
       <View pointerEvents="box-none" style={styles.overlay}>
         <View pointerEvents="box-none" style={styles.annotationLayer}>
@@ -162,7 +174,7 @@ export function WorksheetCanvas({
 
         {showRegions ? (
           <View pointerEvents="box-none" style={styles.regionLayer}>
-            {pageRegions.map((region, index) => {
+            {selectableRegions.map((region, index) => {
               const isSelected = effectiveSelectedRegionId === region.id;
               const label = regionLabel(region, index);
               const palette = regionPalette(region.kind, theme);
@@ -241,15 +253,18 @@ export function WorksheetCanvasPanel({
   onAnnotationPress,
   regionLabel = defaultRegionLabel,
   annotationLabel = defaultAnnotationLabel,
-  showRegions = true,
+  // Detected regions are geometry for the tutor to target with annotations,
+  // not a student-facing feature; only actual tutor annotations should draw
+  // a box/circle/highlight unless a caller opts into the region-picker UI.
+  showRegions = false,
   showAnnotations = true,
   showAnnotationLabels = true,
   maxWidth = 1200,
   accessibilityLabel = 'Uploaded worksheet',
   testID,
   title = 'Worksheet',
-  subtitle = 'Select a part of the page to focus your tutor.',
-  showRegionList = true,
+  subtitle = 'Your tutor will highlight and circle parts of your work as you talk.',
+  showRegionList = false,
   style,
   canvasStyle,
 }: WorksheetCanvasPanelProps) {
@@ -262,8 +277,10 @@ export function WorksheetCanvasPanel({
     setUncontrolledSelectedRegionId(defaultSelectedRegionId);
   }, [defaultSelectedRegionId, page.id]);
 
+  // Word-level "term" regions are tutor annotation targets, not student-facing
+  // worksheet "parts" — keep them out of the count and navigator list.
   const pageRegions = useMemo(
-    () => regions.filter((region) => region.pageId === page.id),
+    () => regions.filter((region) => region.pageId === page.id && region.kind !== 'term'),
     [page.id, regions],
   );
 
@@ -283,7 +300,9 @@ export function WorksheetCanvasPanel({
           <ProductText variant="bodyMedium">{title}</ProductText>
           <ProductText variant="caption" color={theme.textSecondary}>{subtitle}</ProductText>
         </View>
-        <Pill tone="neutral">{pageRegions.length} {pageRegions.length === 1 ? 'part' : 'parts'}</Pill>
+        {showRegions || showRegionList ? (
+          <Pill tone="neutral">{pageRegions.length} {pageRegions.length === 1 ? 'part' : 'parts'}</Pill>
+        ) : null}
       </View>
 
       <WorksheetCanvas
@@ -362,9 +381,21 @@ function AnnotationOverlay({
   showLabel: boolean;
   theme: ReturnType<typeof useTheme>;
 }) {
+  // The label is a hover tooltip, not a permanently-drawn part of the mark:
+  // it only shows while hovering (mouse) or while pressed-and-held (touch),
+  // so overlapping annotations don't permanently cover each other's text.
+  const [labelRevealed, setLabelRevealed] = useState(false);
   const label = annotationLabel(annotation);
-  const targetStyle = normalizedBoundsToStyle(regionBounds(region));
+  const bounds = regionBounds(region);
+  const targetStyle = normalizedBoundsToStyle(bounds);
   const palette = annotationPalette(annotation.kind, theme);
+  const hasLabelText = annotation.kind === 'label' || (showLabel && Boolean(annotation.label?.trim()));
+  // The label floats above its region by default, but that has nowhere to go
+  // when the region already sits at the top of the page, so drop it inside
+  // the region's top edge instead of letting it spill off the page.
+  const labelStyle = bounds.y < 0.04
+    ? [styles.annotationLabel, styles.annotationLabelInset]
+    : styles.annotationLabel;
   const visual = (
     <>
       {annotation.kind === 'highlight' ? <View pointerEvents="none" style={[styles.annotationHighlight, { backgroundColor: palette.fill, borderColor: palette.border }]} /> : null}
@@ -372,46 +403,37 @@ function AnnotationOverlay({
       {annotation.kind === 'underline' ? <View pointerEvents="none" style={[styles.annotationUnderline, { backgroundColor: palette.border }]} /> : null}
       {annotation.kind === 'arrow' ? <View pointerEvents="none" style={styles.annotationArrow}><Text aria-hidden style={[styles.annotationArrowGlyph, { color: palette.border }]}>↘</Text></View> : null}
       {annotation.kind === 'focus' ? <View pointerEvents="none" style={[styles.annotationFocus, { borderColor: palette.border, backgroundColor: palette.fill }]} /> : null}
-      {(annotation.kind === 'label' || (showLabel && Boolean(annotation.label?.trim()))) ? (
-        <View pointerEvents="none" style={[styles.annotationLabel, { backgroundColor: palette.border }]}>
+      {annotation.kind === 'label' && !labelRevealed ? <View pointerEvents="none" style={[styles.annotationDot, { backgroundColor: palette.border }]} /> : null}
+      {hasLabelText && labelRevealed ? (
+        <View pointerEvents="none" style={[labelStyle, { backgroundColor: palette.border }]}>
           <Text numberOfLines={1} style={styles.annotationLabelText}>{label}</Text>
         </View>
       ) : null}
     </>
   );
 
-  if (onPress) {
-    return (
-      <Pressable
-        accessibilityLabel={label}
-        accessibilityRole="button"
-        accessibilityHint="Double tap to open this tutor annotation."
-        onPress={() => {
-          onRegionSelect(region);
-          onPress(annotation);
-        }}
-        style={({ pressed }) => [
-          targetStyle,
-          styles.annotationHitArea,
-          { zIndex: 20 + annotationIndex },
-          pressed && styles.pressedAnnotation,
-        ]}
-      >
-        {visual}
-      </Pressable>
-    );
-  }
-
   return (
-    <View
-      accessible={Boolean(annotation.label)}
-      accessibilityLabel={annotation.label ? label : undefined}
-      accessibilityRole={annotation.label ? 'text' : undefined}
-      pointerEvents="box-none"
-      style={[targetStyle, styles.annotationHitArea, { zIndex: 20 + annotationIndex }]}
+    <Pressable
+      accessibilityLabel={label}
+      accessibilityRole="button"
+      accessibilityHint="Hover, or tap and hold, to see the tutor's note."
+      onHoverIn={() => setLabelRevealed(true)}
+      onHoverOut={() => setLabelRevealed(false)}
+      onLongPress={() => setLabelRevealed(true)}
+      onPressOut={() => setLabelRevealed(false)}
+      onPress={() => {
+        onRegionSelect(region);
+        onPress?.(annotation);
+      }}
+      style={({ pressed }) => [
+        targetStyle,
+        styles.annotationHitArea,
+        { zIndex: 20 + annotationIndex },
+        pressed && styles.pressedAnnotation,
+      ]}
     >
       {visual}
-    </View>
+    </Pressable>
   );
 }
 
@@ -453,9 +475,16 @@ const styles = StyleSheet.create({
     borderColor: '#E4E8F0',
     borderRadius: 18,
     borderWidth: 1,
-    overflow: 'hidden',
     position: 'relative',
     width: '100%',
+  },
+  // Clips only the page image so annotation overlays (which can extend past
+  // their region's box, e.g. a label floating above it) are never cut off by
+  // the same boundary that rounds the image's corners.
+  imageClip: {
+    ...StyleSheet.absoluteFill,
+    borderRadius: 18,
+    overflow: 'hidden',
   },
   image: {
     ...StyleSheet.absoluteFill,
@@ -497,18 +526,22 @@ const styles = StyleSheet.create({
   },
   annotationHighlight: {
     ...StyleSheet.absoluteFill,
+    // A negative margin expands the mark past the tight OCR text bounds so
+    // the border sits clear of ascenders/descenders instead of crossing them.
     borderRadius: 7,
     borderWidth: 1,
+    margin: -5,
   },
   annotationCircle: {
     ...StyleSheet.absoluteFill,
     borderRadius: 9999,
-    borderWidth: 3,
+    borderWidth: 1.5,
+    margin: -8,
   },
   annotationUnderline: {
     borderRadius: 3,
-    bottom: '4%',
-    height: 3,
+    bottom: -6,
+    height: 2,
     left: '5%',
     position: 'absolute',
     right: '5%',
@@ -530,7 +563,8 @@ const styles = StyleSheet.create({
   annotationFocus: {
     ...StyleSheet.absoluteFill,
     borderRadius: 10,
-    borderWidth: 3,
+    borderWidth: 1.5,
+    margin: -6,
   },
   annotationLabel: {
     borderRadius: 9,
@@ -540,7 +574,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     position: 'absolute',
-    top: -14,
+    top: -26,
+  },
+  annotationLabelInset: {
+    top: 10,
+  },
+  annotationDot: {
+    borderRadius: 5,
+    height: 10,
+    left: '-2%',
+    position: 'absolute',
+    top: '-2%',
+    width: 10,
   },
   annotationLabelText: {
     color: '#FFFFFF',

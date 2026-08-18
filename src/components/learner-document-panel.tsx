@@ -1,11 +1,12 @@
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useDocumentAnalysis } from '@/hooks/use-document-analysis';
+import { canonicalizeLocalImage } from '@/features/document-import/canonicalize';
 import type { LocalDocumentAsset } from '@/features/document-import/upload';
 import type { LearnerDocumentContext } from '@/features/workspace/types';
 import { Button, EmptyState, InlineNotice, LoadingLines, Pill, ProductIcon, ProductText, Surface } from '@/components/product-primitives';
@@ -27,6 +28,13 @@ export function LearnerDocumentPanel({
   const [activeRegionId, setActiveRegionId] = useState<string | null>(null);
   const [pickerError, setPickerError] = useState<string | null>(null);
 
+  // Word-level "term" regions are tutor annotation targets, not student-facing
+  // worksheet "parts" — keep them out of the visible navigator list.
+  const visibleRegions = useMemo(
+    () => analysis.regions.filter((region) => region.kind !== 'term'),
+    [analysis.regions],
+  );
+
   useEffect(() => {
     setActiveRegionId(null);
     setPickerError(null);
@@ -36,11 +44,11 @@ export function LearnerDocumentPanel({
   useEffect(() => {
     if (!analysis.isComplete) return;
     setActiveRegionId((current) => (
-      current && analysis.regions.some((region) => region.id === current)
+      current && visibleRegions.some((region) => region.id === current)
         ? current
-        : analysis.regions[0]?.id ?? null
+        : visibleRegions[0]?.id ?? null
     ));
-  }, [analysis.isComplete, analysis.regions]);
+  }, [analysis.isComplete, visibleRegions]);
 
   useEffect(() => {
     if (!analysis.isComplete || !analysis.workflow) {
@@ -69,14 +77,14 @@ export function LearnerDocumentPanel({
         setPickerError('No page was selected. Choose a JPEG or PNG image to continue.');
         return;
       }
+      const canonical = await canonicalizeLocalImage(asset);
       const localAsset: LocalDocumentAsset = {
-        uri: asset.uri,
+        uri: canonical.uri,
         name: asset.fileName,
-        mimeType: asset.mimeType,
-        size: asset.fileSize,
-        width: asset.width,
-        height: asset.height,
-        file: asset.file ?? null,
+        mimeType: canonical.mimeType,
+        width: canonical.width,
+        height: canonical.height,
+        file: null,
       };
       await analysis.start({
         asset: localAsset,
@@ -152,9 +160,9 @@ export function LearnerDocumentPanel({
           ) : analysis.isLoadingPage ? <LoadingLines lines={4} /> : <InlineNotice tone="danger">I couldn&apos;t show that photo right now.</InlineNotice>}
             <View style={styles.resultMeta}>
             <View style={styles.resultTitle}><ProductText variant="bodyMedium">What I noticed</ProductText><Pill tone="neutral">Saved</Pill></View>
-            {analysis.isLoadingRegions ? <LoadingLines lines={2} /> : analysis.regions.length === 0 ? <ProductText variant="caption" color={theme.textSecondary}>I didn&apos;t find separate parts yet, but you can still ask your tutor about this work.</ProductText> : (
+            {analysis.isLoadingRegions ? <LoadingLines lines={2} /> : visibleRegions.length === 0 ? <ProductText variant="caption" color={theme.textSecondary}>I didn&apos;t find separate parts yet, but you can still ask your tutor about this work.</ProductText> : (
               <View style={styles.regionList}>
-                {analysis.regions.map((region, index) => (
+                {visibleRegions.map((region, index) => (
                   <Pressable
                     key={region.id}
                     accessibilityRole="radio"

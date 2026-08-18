@@ -1,5 +1,6 @@
 import type { DocumentAnalyzer, TutorModel } from "./contracts";
 import { BedrockTutorModel, type BedrockConverse } from "./bedrock-tutor";
+import { OpenAiTutorModel, type OpenAiChat, type OpenAiReasoningEffort } from "./openai-tutor";
 import { FakeTutorModel } from "./fake-tutor";
 import { AwsBdaDocumentAnalyzer, type BdaInvoker } from "./bda-adapter";
 import { FakeDocumentAnalyzer } from "./fake-document-analyzer";
@@ -8,7 +9,7 @@ import { NovaSemanticMapper, type NovaInvoker } from "./nova-mapper";
 export type ProviderEnv = Record<string, string | undefined>;
 
 export type ProviderSelection<T> = {
-  provider: "fake" | "bedrock" | "aws_bda";
+  provider: "fake" | "bedrock" | "openai" | "aws_bda";
   enabled: boolean;
   reason?: string;
   model: T;
@@ -29,8 +30,15 @@ function hasServerCredentials(env: ProviderEnv): boolean {
   );
 }
 
+const REASONING_EFFORTS = new Set<OpenAiReasoningEffort>(["none", "low", "medium", "high", "xhigh", "max"]);
+
+function asReasoningEffort(value: string | undefined): OpenAiReasoningEffort | undefined {
+  return value && REASONING_EFFORTS.has(value as OpenAiReasoningEffort) ? value as OpenAiReasoningEffort : undefined;
+}
+
 export type TutorProviderOptions = {
   converse?: BedrockConverse;
+  chat?: OpenAiChat;
 };
 
 export function selectTutorProvider(
@@ -38,7 +46,29 @@ export function selectTutorProvider(
   options: TutorProviderOptions = {},
 ): ProviderSelection<TutorModel> {
   const fake = new FakeTutorModel();
-  if ((env.TUTOR_MODEL_PROVIDER ?? "fake").toLocaleLowerCase() !== "bedrock") {
+  const provider = (env.TUTOR_MODEL_PROVIDER ?? "fake").toLocaleLowerCase();
+  if (provider === "openai") {
+    if (!env.OPENAI_API_KEY && !options.chat) {
+      return {
+        provider: "fake",
+        enabled: false,
+        model: fake,
+        reason: "OpenAI is opt-in and requires OPENAI_API_KEY (or an injected server invoker).",
+      };
+    }
+    return {
+      provider: "openai",
+      enabled: true,
+      model: new OpenAiTutorModel({
+        apiKey: env.OPENAI_API_KEY,
+        model: env.OPENAI_MODEL,
+        baseUrl: env.OPENAI_BASE_URL,
+        reasoningEffort: asReasoningEffort(env.OPENAI_REASONING_EFFORT),
+        chat: options.chat,
+      }),
+    };
+  }
+  if (provider !== "bedrock") {
     return { provider: "fake", enabled: true, model: fake, reason: "fake provider is the safe default" };
   }
   if (!env.TUTOR_MODEL_ID || !env.AWS_REGION || (!hasServerCredentials(env) && !options.converse)) {

@@ -168,6 +168,12 @@ function annotation(value: unknown, index: number, input: TutorModelInput): Tuto
   if (knownRegionIds.size > 0 && !knownRegionIds.has(targetRegionId)) {
     throw new StructuredOutputError(`${field}.targetRegionId is not present in the supplied page regions.`);
   }
+  if (knownRegionIds.size === 0) {
+    console.warn(
+      `[tutor:annotation] ${field} targets "${targetRegionId}" but no pageRegions were supplied for this turn; ` +
+      "the existence check was skipped and this annotation may be dropped at persist time.",
+    );
+  }
   return {
     id: requiredString(value.id, `${field}.id`, 200),
     pageId,

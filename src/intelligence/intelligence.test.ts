@@ -2,6 +2,7 @@ import { DEMO_PAGE, DEMO_REGIONS } from "../constants/demo-fixtures";
 import { GOLDEN_SKILLS, GOLDEN_TEACHING_BRIEFS } from "./eval-fixtures";
 import { FakeTutorModel } from "./fake-tutor";
 import { BedrockTutorModel } from "./bedrock-tutor";
+import { OpenAiTutorModel } from "./openai-tutor";
 import { regionsFromBda } from "./bda-geometry";
 import { AwsBdaDocumentAnalyzer } from "./bda-adapter";
 import { cropLocalToPage, verifyCropMapping } from "./crop-geometry";
@@ -11,6 +12,13 @@ import { resolveSkill } from "./skill-resolver";
 import { selectDocumentAnalyzer, selectTutorProvider } from "./providers";
 import { mapNovaResponse } from "./nova-mapper";
 import { StructuredOutputError, validateTutorResult } from "./validation";
+
+// A 1x1 PNG, used wherever a test needs real, decodable image bytes rather
+// than a page's actual pixels (e.g. to exercise canonicalization).
+const ONE_PIXEL_PNG = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAAAAAA6fptVAAAACklEQVR4nGMAAQAABQABDQottAAAAABJRU5ErkJggg==",
+  "base64",
+);
 
 type TestCallback = () => void | Promise<void>;
 const test = (_name: string, callback: TestCallback): void => {
@@ -88,6 +96,38 @@ test("Bedrock adapter validates structured output and falls back without raw lea
   assert.doesNotMatch(JSON.stringify(result), /not json/);
 });
 
+test("OpenAI adapter validates structured output and falls back without raw leakage", async () => {
+  const model = new OpenAiTutorModel({
+    model: "test-model",
+    chat: async () => ({ choices: [{ message: { content: "not json" } }] }),
+    fallback: new FakeTutorModel(),
+  });
+  const result = await model.generateTurn(tutorInput("maya"));
+  assert.equal(result.metadata?.provider, "openai");
+  assert.equal(result.metadata?.fallbackUsed, true);
+  assert.equal(result.metadata?.fallbackProvider, "fake");
+  assert.doesNotMatch(JSON.stringify(result), /not json/);
+});
+
+test("OpenAI adapter defaults to low reasoning effort and omits temperature", async () => {
+  let request: any;
+  const model = new OpenAiTutorModel({
+    model: "test-model",
+    chat: async (req) => {
+      request = req;
+      return { choices: [{ message: { content: JSON.stringify({ reply: "ok", skillResolutions: [], candidateEvidence: [], annotations: [] }) } }] };
+    },
+  });
+  await model.generateTurn(tutorInput("maya"));
+  assert.equal(request.reasoning_effort, "low");
+  assert.equal("temperature" in request, false);
+  // Reasoning models (gpt-5.x family) reject `max_tokens` with a 400 and
+  // require `max_completion_tokens`; regressing this silently falls back to
+  // the fake tutor on every call instead of surfacing the failure.
+  assert.equal("max_tokens" in request, false);
+  assert.equal(typeof request.max_completion_tokens, "number");
+});
+
 test("BDA geometry adapter normalizes pixels and links words to lines", () => {
   const result = regionsFromBda({
     metadata: { image_width_pixels: 1_000, image_height_pixels: 800 },
@@ -101,6 +141,39 @@ test("BDA geometry adapter normalizes pixels and links words to lines", () => {
   assert.deepEqual(result.regions[0]?.bounds, { x: 0.1, y: 0.2, width: 0.5, height: 0.09999999999999998 });
   assert.equal(result.regions[1]?.parentRegionId, "line-001");
   assert.equal(result.regions[1]?.confidence, 0.98);
+});
+
+test("BDA geometry adapter reads DOCUMENT-modality output (top-level text_lines, singular locations)", () => {
+  // Bedrock Data Automation classifies some pages as DOCUMENT rather than
+  // IMAGE modality. That shape puts text_lines/text_words at the payload's
+  // top level (not nested under `image`) and gives each item a single
+  // `locations` object instead of an array, with bounding boxes already
+  // normalized to the page. See docs.aws.amazon.com/bedrock standard output
+  // for documents.
+  const result = regionsFromBda({
+    metadata: { semantic_modality: "DOCUMENT" },
+    document: { statistics: { line_count: 1, word_count: 1 } },
+    pages: [{ id: "page-1", page_index: 0 }],
+    elements: [],
+    text_lines: [{
+      id: "line-a",
+      text: "x = 6",
+      confidence: 0.96,
+      locations: { page_index: 0, bounding_box: { left: 0.1, top: 0.2, width: 0.5, height: 0.1 } },
+    }],
+    text_words: [{
+      id: "word-b",
+      line_id: "line-a",
+      text: "6",
+      confidence: 0.98,
+      locations: { page_index: 0, bounding_box: { left: 0.5, top: 0.2, width: 0.1, height: 0.1 } },
+    }],
+  }, { pageId: "page-001", revision: 1 });
+  assert.equal(result.lineCount, 1);
+  assert.equal(result.wordCount, 1);
+  assert.equal(result.regions[0]?.id, "line-001");
+  assert.equal(result.regions[1]?.id, "line-001-word-01");
+  assert.equal(result.regions[1]?.parentRegionId, "line-001");
 });
 
 test("Nova semantic mapping accepts only existing region IDs and never returns coordinates", () => {
@@ -130,7 +203,7 @@ test("BDA adapter keeps raw provider output inside the adapter", async () => {
       secret: "must not escape",
     }),
   });
-  const page = (await analyzer.analyze({ artifactId: GOLDEN_PAGE.artifactId, page: GOLDEN_PAGE, image: { mimeType: "image/jpeg", bytes: new Uint8Array([1, 2, 3]) } }))[0]!;
+  const page = (await analyzer.analyze({ artifactId: GOLDEN_PAGE.artifactId, page: GOLDEN_PAGE, image: { mimeType: "image/png", bytes: ONE_PIXEL_PNG } }))[0]!;
   assert.equal(page.metadata.provider, "aws_bda");
   assert.doesNotMatch(JSON.stringify(page), /must not escape/);
 });
@@ -163,9 +236,18 @@ test("skill resolver is exact/text-first and never silently activates proposals"
 
 test("provider selection defaults to fake and disables incomplete real configuration", () => {
   const tutor = selectTutorProvider({ TUTOR_MODEL_PROVIDER: "bedrock" });
+  const openaiTutor = selectTutorProvider({ TUTOR_MODEL_PROVIDER: "openai" });
   const analyzer = selectDocumentAnalyzer({ DOCUMENT_ANALYSIS_PROVIDER: "aws_bda" });
   assert.equal(tutor.provider, "fake");
   assert.equal(tutor.enabled, false);
+  assert.equal(openaiTutor.provider, "fake");
+  assert.equal(openaiTutor.enabled, false);
   assert.equal(analyzer.provider, "fake");
   assert.equal(analyzer.enabled, false);
+});
+
+test("provider selection enables OpenAI once an API key is present", () => {
+  const tutor = selectTutorProvider({ TUTOR_MODEL_PROVIDER: "openai", OPENAI_API_KEY: "sk-test" });
+  assert.equal(tutor.provider, "openai");
+  assert.equal(tutor.enabled, true);
 });

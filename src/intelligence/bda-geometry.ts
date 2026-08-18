@@ -78,9 +78,15 @@ function boundsFromPolygon(polygon: readonly NormalizedPoint[]): NormalizedBound
   return { x, y, width: right - x, height: bottom - y };
 }
 
+function locationsOf(item: JsonObject): JsonObject[] {
+  const raw = item.locations ?? item.location;
+  if (Array.isArray(raw)) return raw.map(object).filter((value): value is JsonObject => Boolean(value));
+  const single = object(raw);
+  return single ? [single] : [];
+}
+
 function polygonFromItem(item: JsonObject, sizes: { width?: number; height?: number }): NormalizedPoint[] {
-  const locations = array(item, "locations", "location");
-  const location = object(locations[0]);
+  const location = locationsOf(item)[0];
   const polygon = normalizePolygon(location?.polygon, sizes);
   if (polygon.length >= 3) return polygon;
   const box = object(location?.bounding_box ?? location?.boundingBox);
@@ -127,16 +133,38 @@ function parseStandardOutput(value: unknown): JsonObject | undefined {
   return object(value);
 }
 
+/** Summarize the parsed standard-output payload's shape for diagnostics, without content. */
+export function describeBdaPayloadShape(raw: unknown): string {
+  const payload = standardPayload(raw);
+  if (!payload) return "standardOutput did not parse as JSON";
+  const image = object(payload.image);
+  const documentKeys = object(payload.document) ? Object.keys(object(payload.document)!) : undefined;
+  const pagesLength = Array.isArray(payload.pages) ? payload.pages.length : undefined;
+  return `payloadKeys=[${Object.keys(payload).join(",")}] imageKeys=[${image ? Object.keys(image).join(",") : "none"}]`
+    + (documentKeys ? ` documentKeys=[${documentKeys.join(",")}]` : "")
+    + (pagesLength !== undefined ? ` pagesLength=${pagesLength}` : "");
+}
+
 function standardPayload(raw: unknown): JsonObject | undefined {
   const response = object(raw);
   const segment = array(response, "outputSegments", "output_segments")[0];
   const segmentObject = object(segment);
   const standard = segmentObject?.standardOutput ?? segmentObject?.standard_output
     ?? response?.standardOutput ?? response?.standard_output;
-  const parsed = parseStandardOutput(standard ?? raw);
-  if (!parsed) return undefined;
-  const image = object(parsed.image) ?? object(parsed.document);
-  return image ? { ...parsed, image } : parsed;
+  return parseStandardOutput(standard ?? raw);
+}
+
+/**
+ * BDA's IMAGE modality nests text_lines/text_words under `image`. Its
+ * DOCUMENT modality (semantic_modality: "DOCUMENT") puts them at the
+ * payload's top level instead, with `document`/`image` holding only
+ * statistics — so both locations must be checked.
+ */
+function textItems(payload: JsonObject, keys: string[]): JsonObject[] {
+  const nested = object(payload.image) ?? object(payload.document);
+  const fromNested = array(nested, ...keys);
+  const source = fromNested.length > 0 ? fromNested : array(payload, ...keys);
+  return source.map(object).filter((item): item is JsonObject => Boolean(item));
 }
 
 function stableSort(items: JsonObject[], sizes: { width?: number; height?: number }): JsonObject[] {
@@ -177,10 +205,9 @@ export function regionsFromBda(
   const pageId = options.pageId ?? "page-001";
   const revision = options.revision ?? 1;
   const payload = standardPayload(raw);
-  const image = object(payload?.image) ?? payload;
   const sizes = payload ? dimensions(payload) : {};
-  const lineItems = stableSort(array(image, "text_lines", "textLines").map(object).filter((item): item is JsonObject => Boolean(item)), sizes);
-  const wordItems = stableSort(array(image, "text_words", "textWords").map(object).filter((item): item is JsonObject => Boolean(item)), sizes);
+  const lineItems = stableSort(payload ? textItems(payload, ["text_lines", "textLines"]) : [], sizes);
+  const wordItems = stableSort(payload ? textItems(payload, ["text_words", "textWords"]) : [], sizes);
   const detected: DetectedRegion[] = [];
   const lineIds = new Map<string, string>();
   lineItems.forEach((item, index) => {

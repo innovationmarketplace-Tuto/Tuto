@@ -3,7 +3,7 @@ export function normalizeTutorMetadata(metadata: unknown): Record<string, unknow
   if (!metadata || typeof metadata !== "object") return undefined;
   const value = metadata as Record<string, unknown>;
   const output: Record<string, unknown> = {};
-  if (value.provider === "bedrock" || value.provider === "fake") output.provider = value.provider;
+  if (value.provider === "bedrock" || value.provider === "fake" || value.provider === "openai") output.provider = value.provider;
   if (typeof value.model === "string" && value.model.trim()) output.model = value.model.trim().slice(0, 200);
   if (typeof value.promptVersion === "string" && value.promptVersion.trim()) output.promptVersion = value.promptVersion.trim().slice(0, 100);
   if (typeof value.latencyMs === "number" && Number.isFinite(value.latencyMs)) output.latencyMs = Math.max(0, Math.round(value.latencyMs));

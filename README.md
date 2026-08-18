@@ -80,16 +80,21 @@ The shared development deployment is provisioned for the real providers through
 with the server-side variables from `.env.example` (for example, with
 `npx convex env set`):
 
-- Tutor: `TUTOR_MODEL_PROVIDER=bedrock`, `TUTOR_MODEL_ID`, `AWS_REGION`, and
-  server-side AWS credentials.
-- Documents: `DOCUMENT_ANALYSIS_PROVIDER=aws_bda`, `AWS_BDA_MODE=sync`, and the
-  reviewed BDA project/profile ARNs and stage.
+- Tutor (chat + worksheet conversation turns): either
+  `TUTOR_MODEL_PROVIDER=bedrock` with `TUTOR_MODEL_ID`, `AWS_REGION`, and
+  server-side AWS credentials, or `TUTOR_MODEL_PROVIDER=openai` with
+  `OPENAI_API_KEY` (defaults to `gpt-5.6-luna` at `low` reasoning effort;
+  override with `OPENAI_MODEL`, `OPENAI_REASONING_EFFORT`, `OPENAI_BASE_URL`).
+- Documents (page OCR/data extraction): `DOCUMENT_ANALYSIS_PROVIDER=aws_bda`,
+  `AWS_BDA_MODE=sync`, and the reviewed BDA project/profile ARNs and stage.
+  This always runs on Bedrock/BDA regardless of the tutor provider above.
 - Nova semantic mapping is optional via `NOVA_MODEL_ID`.
 
-Never put AWS keys in source code, the client bundle, or committed files.
-`DOCUMENT_ANALYSIS_KILL_SWITCH=true` disables the AWS analyzer; the fake
-provider remains available for offline development and tests. Follow
-[`AWS_PLAN.md`](AWS_PLAN.md) for account, IAM, quota, and cost steps.
+Never put AWS keys or the OpenAI API key in source code, the client bundle, or
+committed files. `DOCUMENT_ANALYSIS_KILL_SWITCH=true` disables the AWS
+analyzer; the fake provider remains available for offline development and
+tests. Follow [`AWS_PLAN.md`](AWS_PLAN.md) for account, IAM, quota, and cost
+steps.
 
 ## Mobile builds and web hosting
 
