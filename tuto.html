@@ -1,0 +1,898 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tuto</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Lora:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Caveat:wght@600&display=swap');
+
+:root{
+  --paper: #ECE5D2;
+  --paper-dark: #E1D8BE;
+  --card: #F7F2E5;
+  --ink: #221E17;
+  --ink-soft: #5B5645;
+  --ink-faint: #8B8570;
+  --line: #C7BC9C;
+  --pen-red: #A2402C;
+  --pen-red-soft: #D9BAAF;
+  --check-green: #3E6249;
+  --check-green-soft: #C7D6C7;
+  --gold: #B98A21;
+  --gold-soft: #E7D9A9;
+  --shadow: rgba(34, 30, 23, 0.16);
+  --radius: 3px;
+}
+
+*{ box-sizing: border-box; }
+
+html,body{
+  margin:0; padding:0; height:100%;
+  background: var(--paper);
+  background-image:
+    linear-gradient(var(--paper) 0%, var(--paper) 100%);
+  color: var(--ink);
+  font-family: 'IBM Plex Sans', sans-serif;
+}
+
+body{
+  background-image:
+    repeating-linear-gradient(transparent, transparent 27px, rgba(140,130,100,0.08) 28px);
+}
+
+h1,h2,h3{ font-family:'Lora', serif; margin:0; }
+
+button{ font-family:inherit; cursor:pointer; }
+
+#app{ min-height:100vh; display:flex; flex-direction:column; }
+
+/* ---------- GATE (sign-in) ---------- */
+#gate{
+  flex:1; display:flex; align-items:center; justify-content:center;
+  padding:24px;
+}
+.gate-card{
+  background:var(--card);
+  border:1px solid var(--line);
+  box-shadow: 4px 4px 0 var(--shadow);
+  padding:48px 44px;
+  max-width:420px;
+  width:100%;
+  text-align:center;
+  position:relative;
+}
+.gate-card::before{
+  content:'';
+  position:absolute; top:14px; left:50%; transform:translateX(-50%) rotate(-2deg);
+  width:64px; height:14px;
+  background: rgba(185,138,33,0.35);
+}
+.gate-mark{
+  font-family:'IBM Plex Mono', monospace;
+  font-size:11px;
+  letter-spacing:0.14em;
+  color: var(--ink-faint);
+  text-transform:uppercase;
+  margin-bottom:10px;
+}
+.gate-card h1{ font-size:34px; letter-spacing:0.01em; }
+.gate-card p{ color:var(--ink-soft); line-height:1.55; margin:14px 0 28px; font-size:15px; }
+.btn-primary{
+  background: var(--pen-red);
+  color:#F7F2E5;
+  border:none;
+  padding:13px 26px;
+  font-size:15px;
+  font-weight:600;
+  border-radius: var(--radius);
+  box-shadow: 3px 3px 0 rgba(34,30,23,0.2);
+  transition: transform .12s ease;
+}
+.btn-primary:hover{ transform: translate(-1px,-1px); }
+.btn-primary:active{ transform: translate(1px,1px); box-shadow:1px 1px 0 rgba(34,30,23,0.2); }
+
+/* ---------- TOP BAR ---------- */
+.topbar{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:14px 22px 0 22px;
+  border-bottom: 2px solid var(--ink);
+  flex-wrap:wrap; gap:12px;
+}
+.brand{ display:flex; align-items:baseline; gap:10px; padding-bottom:12px; }
+.brand-name{ font-family:'Lora',serif; font-weight:700; font-size:22px; letter-spacing:0.01em; }
+.brand-sub{ font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--ink-faint); letter-spacing:0.05em; }
+.tabs{ display:flex; gap:4px; }
+.tab{
+  background: var(--paper-dark);
+  border:2px solid var(--ink);
+  border-bottom:none;
+  padding:9px 18px 10px;
+  font-size:13.5px;
+  font-weight:600;
+  color: var(--ink-soft);
+  border-radius: 6px 6px 0 0;
+  position:relative;
+  top:2px;
+}
+.tab.active{
+  background: var(--card);
+  color: var(--ink);
+  top:0;
+}
+
+/* ---------- LAYOUT ---------- */
+.layout{ flex:1; display:flex; min-height:0; }
+.view{ flex:1; display:none; min-width:0; }
+.view.visible{ display:flex; }
+
+/* ---------- CHAT ---------- */
+#view-chat{ flex-direction:row; }
+.chat-col{ flex:1; display:flex; flex-direction:column; min-width:0; border-right:1px solid var(--line); }
+.thread{ flex:1; overflow-y:auto; padding:22px 26px; display:flex; flex-direction:column; gap:16px; }
+
+.msg{ max-width:640px; display:flex; flex-direction:column; gap:6px; }
+.msg.tutor{ align-self:flex-start; }
+.msg.student{ align-self:flex-end; align-items:flex-end; }
+.msg-label{ font-family:'IBM Plex Mono',monospace; font-size:10.5px; text-transform:uppercase; letter-spacing:0.08em; color:var(--ink-faint); }
+.bubble{
+  background:var(--card);
+  border:1px solid var(--line);
+  padding:13px 16px;
+  line-height:1.55;
+  font-size:14.5px;
+  box-shadow: 2px 2px 0 var(--shadow);
+}
+.msg.tutor .bubble{ border-left:3px solid var(--pen-red); border-radius: 2px 10px 10px 10px; }
+.msg.student .bubble{ border-right:3px solid var(--check-green); border-radius: 10px 2px 10px 10px; background:#F1ECDC; }
+.attach-chip{
+  display:inline-flex; align-items:center; gap:6px;
+  font-family:'IBM Plex Mono',monospace; font-size:11px;
+  background: var(--gold-soft); border:1px dashed var(--gold);
+  padding:4px 8px; border-radius: 20px; margin-top:2px; color:#5c4715;
+}
+
+.composer{
+  border-top:1px solid var(--line);
+  padding:14px 20px 18px;
+  background: var(--paper-dark);
+}
+.pending-attach{
+  display:none; align-items:center; gap:8px;
+  font-family:'IBM Plex Mono',monospace; font-size:12px;
+  background: var(--gold-soft); border:1px dashed var(--gold);
+  padding:6px 10px; border-radius:6px; margin-bottom:10px; width:fit-content;
+}
+.pending-attach.show{ display:flex; }
+.pending-attach button{ background:none; border:none; color:#5c4715; font-weight:700; font-size:13px; }
+.composer-row{ display:flex; gap:10px; }
+.composer textarea{
+  flex:1; resize:none; min-height:46px; max-height:120px;
+  font-family:'IBM Plex Sans',sans-serif; font-size:14.5px;
+  padding:11px 13px; border:1px solid var(--line); border-radius:6px;
+  background:var(--card); color:var(--ink);
+}
+.composer textarea:focus{ outline:2px solid var(--pen-red); outline-offset:1px; }
+.send-btn{
+  background: var(--ink); color:var(--paper); border:none; border-radius:6px;
+  padding:0 20px; font-weight:600; font-size:14px;
+}
+.send-btn:hover{ background:var(--pen-red); }
+
+/* ---------- LEDGER (margin) ---------- */
+.ledger{
+  width:290px; flex-shrink:0; display:flex; flex-direction:column;
+  background: repeating-linear-gradient(var(--paper-dark) 0 27px, #E7DDC2 27px 28px);
+  padding:20px 18px; overflow-y:auto;
+}
+.ledger h2{ font-size:14px; font-family:'IBM Plex Mono',monospace; letter-spacing:0.06em; text-transform:uppercase; color:var(--ink-soft); margin-bottom:4px; }
+.ledger .ledger-sub{ font-size:11.5px; color:var(--ink-faint); margin-bottom:16px; line-height:1.4; }
+.ledger-empty{ font-family:'Caveat',cursive; font-size:20px; color: var(--ink-faint); margin-top:20px; }
+.ledger-entry{ margin-bottom:16px; position:relative; padding-left:14px; }
+.ledger-entry::before{
+  content:''; position:absolute; left:0; top:5px; width:7px; height:7px; border-radius:50%;
+  background: var(--ink-faint);
+}
+.ledger-entry.pos::before{ background: var(--check-green); }
+.ledger-entry.neg::before{ background: var(--pen-red); }
+.ledger-entry.obs::before{ background: var(--gold); }
+.ledger-ts{ font-family:'IBM Plex Mono',monospace; font-size:9.5px; color:var(--ink-faint); }
+.ledger-note{ font-family:'Caveat',cursive; font-size:19px; line-height:1.25; color:var(--ink); margin-top:1px; }
+.ledger-skill{ font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:0.04em; }
+
+/* ---------- UPLOAD ---------- */
+#view-upload{ flex-direction:row; }
+.upload-col{ flex:1; padding:28px 32px; overflow-y:auto; }
+.upload-col h2{ font-size:22px; margin-bottom:6px; }
+.upload-col .hint{ color:var(--ink-soft); font-size:14px; margin-bottom:22px; max-width:520px; line-height:1.5; }
+.dropzone{
+  border:2px dashed var(--ink-faint);
+  border-radius:8px;
+  padding:36px;
+  text-align:center;
+  background:var(--card);
+  max-width:520px;
+  color:var(--ink-soft);
+  font-size:14px;
+}
+.dropzone input{ display:none; }
+.dropzone .pick-btn{
+  display:inline-block; margin-top:12px;
+  background: var(--ink); color:var(--paper);
+  padding:9px 18px; border-radius:6px; font-weight:600; font-size:13.5px; border:none;
+}
+.preview-wrap{ max-width:520px; margin-top:24px; position:relative; display:inline-block; }
+.preview-wrap img{ width:100%; display:block; border:1px solid var(--line); box-shadow:3px 3px 0 var(--shadow); }
+.region-box{
+  position:absolute; border:2px solid var(--pen-red);
+  background: rgba(162,64,44,0.12);
+  box-shadow: 0 0 0 2px rgba(255,255,255,0.5) inset;
+}
+.region-box::after{
+  content:'detected region'; position:absolute; top:-22px; left:0;
+  font-family:'IBM Plex Mono',monospace; font-size:10px; background:var(--pen-red); color:#fff;
+  padding:2px 6px; border-radius:3px; white-space:nowrap;
+}
+.upload-actions{ margin-top:16px; display:flex; gap:10px; max-width:520px; flex-wrap:wrap; }
+.btn-secondary{
+  background:var(--card); border:1px solid var(--ink); color:var(--ink);
+  padding:9px 16px; border-radius:6px; font-size:13.5px; font-weight:600;
+}
+.btn-secondary:hover{ background:var(--paper-dark); }
+.status-line{ font-family:'IBM Plex Mono',monospace; font-size:12px; color: var(--check-green); margin-top:10px; }
+
+/* ---------- PROGRESS ---------- */
+#view-progress{ display:none; flex-direction:column; padding:28px 34px; overflow-y:auto; }
+#view-progress.visible{ display:flex; }
+.progress-intro{ max-width:640px; margin-bottom:26px; }
+.progress-intro h2{ font-size:22px; margin-bottom:8px; }
+.progress-intro p{ font-family:'Caveat',cursive; font-size:22px; color:var(--ink-soft); line-height:1.35; }
+.skill-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:18px; max-width:1000px; }
+.skill-card{
+  background:var(--card); border:1px solid var(--line); border-radius:6px;
+  padding:18px 18px 16px; box-shadow:3px 3px 0 var(--shadow); position:relative;
+}
+.skill-name{ font-family:'Lora',serif; font-weight:600; font-size:16.5px; margin-bottom:10px; padding-right:90px; }
+.stamp{
+  position:absolute; top:16px; right:16px;
+  font-family:'IBM Plex Mono',monospace; font-size:10px; font-weight:600;
+  letter-spacing:0.05em; text-transform:uppercase;
+  padding:4px 8px; border-radius:3px; border:1.5px solid; transform:rotate(-3deg);
+}
+.stamp.not_started{ color:var(--ink-faint); border-color:var(--ink-faint); background:transparent; }
+.stamp.emerging{ color:#7a5b12; border-color:var(--gold); background:var(--gold-soft); }
+.stamp.developing{ color:#274a34; border-color:var(--check-green-soft); background:var(--check-green-soft); }
+.stamp.solid{ color:#F7F2E5; border-color:var(--check-green); background:var(--check-green); }
+.signal-line{ font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--ink-soft); margin-bottom:10px; }
+.notes-label{ font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--ink-faint); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:6px; }
+.note-item{ font-family:'Caveat',cursive; font-size:18.5px; color:var(--ink); line-height:1.3; margin-bottom:6px; padding-left:10px; border-left:2px solid var(--line); }
+.no-notes{ font-size:13px; color:var(--ink-faint); font-style:italic; }
+
+/* ---------- responsive ---------- */
+@media (max-width: 880px){
+  #view-chat, #view-upload{ flex-direction:column; }
+  .ledger{ width:auto; max-height:200px; border-top:1px solid var(--line); }
+  .chat-col{ border-right:none; }
+}
+@media (max-width: 560px){
+  .topbar{ padding:12px 14px 0; }
+  .thread{ padding:16px; }
+  .upload-col{ padding:20px; }
+  #view-progress{ padding:20px; }
+}
+
+.visually-hidden{ position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0,0,0,0); }
+:focus-visible{ outline:2px solid var(--pen-red); outline-offset:2px; }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <div id="gate">
+    <div class="gate-card">
+      <div class="gate-mark">Tuto — prototype v0.1</div>
+      <h1>Tuto</h1>
+      <p>One student. One notebook. Tuto remembers what it's seen you do, keeps that memory in plain sight, and teaches the next step based on it — not from scratch every time.</p>
+      <button class="btn-primary" id="continue-btn">Continue</button>
+    </div>
+  </div>
+
+  <div id="main" style="display:none; flex-direction:column; flex:1; min-height:0;">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-name">Tuto</span>
+        <span class="brand-sub">fraction addition · session</span>
+      </div>
+      <nav class="tabs">
+        <button class="tab active" data-tab="chat">Chat</button>
+        <button class="tab" data-tab="upload">Upload</button>
+        <button class="tab" data-tab="progress">Progress</button>
+      </nav>
+    </header>
+
+    <main class="layout">
+      <section class="view visible" id="view-chat">
+        <div class="chat-col">
+          <div class="thread" id="thread"></div>
+          <div class="composer">
+            <div class="pending-attach" id="pending-attach">
+              <span>📎</span>
+              <span id="pending-attach-label"></span>
+              <button id="pending-attach-remove" aria-label="Remove attachment">✕</button>
+            </div>
+            <div class="composer-row">
+              <textarea id="composer-input" placeholder="Answer, ask a question, or show your work..." rows="1"></textarea>
+              <button class="send-btn" id="send-btn">Send</button>
+            </div>
+          </div>
+        </div>
+        <aside class="ledger" id="ledger-chat">
+          <h2>What I'm noticing</h2>
+          <div class="ledger-sub">A live record of what changed in my model of you, and why. Nothing here is hidden from you.</div>
+          <div id="ledger-list"></div>
+        </aside>
+      </section>
+
+      <section class="view" id="view-upload">
+        <div class="upload-col">
+          <h2>Upload your work</h2>
+          <p class="hint">Upload a photo of an attempt (JPEG or PNG). I'll look for the part that seems most worth discussing, and you can attach it to your next message so I can refer to it directly.</p>
+          <div class="dropzone" id="dropzone">
+            <div id="dropzone-text">Drag a photo here, or</div>
+            <label class="pick-btn" for="file-input">Choose a file</label>
+            <input type="file" id="file-input" accept="image/jpeg,image/png">
+          </div>
+          <div id="preview-area"></div>
+          <div class="upload-actions" id="upload-actions" style="display:none;">
+            <button class="btn-secondary" id="detect-btn">Detect region</button>
+            <button class="btn-primary" id="attach-btn" style="display:none;">Attach to next message</button>
+          </div>
+          <div class="status-line" id="upload-status"></div>
+        </div>
+        <aside class="ledger" id="ledger-upload">
+          <h2>What I'm noticing</h2>
+          <div class="ledger-sub">A live record of what changed in my model of you, and why. Nothing here is hidden from you.</div>
+          <div id="ledger-list-2"></div>
+        </aside>
+      </section>
+
+      <section class="view" id="view-progress">
+        <div class="progress-intro">
+          <h2>What I currently believe about you</h2>
+          <p id="progress-summary">Give me a bit of practice and I'll have something to say here.</p>
+        </div>
+        <div class="skill-grid" id="skill-grid"></div>
+      </section>
+    </main>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---------------- constants ----------------
+  var SKILL_DEFS = [
+    { id:'common-denominators', name:'Finding common denominators' },
+    { id:'adding-numerators', name:'Adding numerators correctly' },
+    { id:'simplifying-fractions', name:'Simplifying the result' }
+  ];
+  var CORRECT_NUM = 7, CORRECT_DEN = 12; // 1/4 + 1/3 = 7/12
+
+  // ---------------- state ----------------
+  var session = null;   // { messages, pendingAttachment, phase }
+  var model = null;     // { skills:{id:{evidence:[{delta,note,ts}]}}, evidenceLog:[...] }
+  var uploads = null;   // { images:[{id,dataUrl,naturalW,naturalH,region:{xPct,yPct,wPct,hPct,posLabel}}] }
+  var currentImageId = null;
+
+  function uid(prefix){ return prefix + '-' + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+  function nowTs(){ return Date.now(); }
+  function fmtTime(ts){
+    var d = new Date(ts);
+    var h = d.getHours(), m = d.getMinutes();
+    var ampm = h >= 12 ? 'pm' : 'am';
+    h = h % 12; if(h===0) h = 12;
+    return h + ':' + (m<10?'0':'') + m + ampm;
+  }
+
+  function defaultSession(){
+    return {
+      messages: [
+        { id: uid('m'), role:'tutor', text: "Let's start with fraction addition. What is 1/4 + 1/3? Walk me through it however feels natural — words, digits, or a photo of your work.", ts: nowTs() }
+      ],
+      pendingAttachment: null,
+      phase: 'awaiting_answer'
+    };
+  }
+  function defaultModel(){
+    var skills = {};
+    SKILL_DEFS.forEach(function(s){ skills[s.id] = { evidence: [] }; });
+    return { skills: skills, evidenceLog: [] };
+  }
+  function defaultUploads(){ return { images: [] }; }
+
+  // ---------------- storage ----------------
+  function loadAll(){
+    return Promise.all([
+      window.storage.get('tuto-session').catch(function(){ return null; }),
+      window.storage.get('tuto-model').catch(function(){ return null; }),
+      window.storage.get('tuto-uploads').catch(function(){ return null; })
+    ]).then(function(results){
+      session = results[0] ? JSON.parse(results[0].value) : defaultSession();
+      model   = results[1] ? JSON.parse(results[1].value) : defaultModel();
+      uploads = results[2] ? JSON.parse(results[2].value) : defaultUploads();
+    });
+  }
+  function saveSession(){ return window.storage.set('tuto-session', JSON.stringify(session)).catch(function(e){ console.error('save session failed', e); }); }
+  function saveModel(){ return window.storage.set('tuto-model', JSON.stringify(model)).catch(function(e){ console.error('save model failed', e); }); }
+  function saveUploads(){ return window.storage.set('tuto-uploads', JSON.stringify(uploads)).catch(function(e){ console.error('save uploads failed', e); }); }
+
+  // ---------------- math helpers ----------------
+  function gcd(a,b){ a=Math.abs(a); b=Math.abs(b); while(b){ var t=b; b=a%b; a=t; } return a || 1; }
+
+  function parseAnswer(text){
+    var re = /(\d+)\s*\/\s*(\d+)/g;
+    var match, last = null;
+    while((match = re.exec(text)) !== null){ last = match; }
+    if(!last) return { type:'unclear' };
+    var num = parseInt(last[1],10), den = parseInt(last[2],10);
+    if(den === 0) return { type:'unclear' };
+    var value = num/den;
+    var correctValue = CORRECT_NUM/CORRECT_DEN;
+    var isEquivalent = Math.abs(value - correctValue) < 1e-9;
+    var g = gcd(num,den);
+    var isSimplified = g === 1;
+    var addedDenomsDirectly = (den === 7) && !isEquivalent;
+
+    if(addedDenomsDirectly) return { type:'misconception-add-denominators', num:num, den:den };
+    if(isEquivalent && isSimplified) return { type:'correct-simplified', num:num, den:den };
+    if(isEquivalent && !isSimplified) return { type:'correct-unsimplified', num:num, den:den };
+    return { type:'incorrect-other', num:num, den:den };
+  }
+
+  // ---------------- evidence / model update ----------------
+  function pushEvidence(skillId, delta, note, sourceType){
+    var entry = { id: uid('ev'), ts: nowTs(), skillId: skillId, delta: delta, note: note, sourceType: sourceType || 'chat' };
+    model.evidenceLog.push(entry);
+    if(skillId && delta !== 0){
+      model.skills[skillId].evidence.push({ delta: delta, note: note, ts: entry.ts });
+    }
+    return entry;
+  }
+
+  function skillScore(skillId){
+    return model.skills[skillId].evidence.reduce(function(sum,e){ return sum + e.delta; }, 0);
+  }
+  function skillStatus(skillId){
+    var ev = model.skills[skillId].evidence;
+    if(ev.length === 0) return 'not_started';
+    var score = skillScore(skillId);
+    if(score >= 2) return 'solid';
+    if(score === 1) return 'developing';
+    return 'emerging';
+  }
+  var STATUS_LABEL = { not_started:'Not started yet', emerging:'Emerging', developing:'Developing', solid:'Solid' };
+
+  // returns { replyText, evidenceType }
+  function applyTextEvidence(parsed){
+    var replyLines = [];
+    switch(parsed.type){
+      case 'misconception-add-denominators':
+        pushEvidence('common-denominators', -1,
+          "I noticed you combined the denominators directly (4 + 3 = 7) instead of finding a common denominator.", 'chat');
+        replyLines.push("I see " + parsed.num + "/" + parsed.den + " — it looks like you added the denominators together (4 + 3 = 7). That's a really common instinct, but denominators don't add like that.");
+        replyLines.push("To add 1/4 and 1/3, we need both fractions written with the *same* denominator first. The smallest number both 4 and 3 divide into is 12, so: 1/4 becomes 3/12, and 1/3 becomes 4/12. Now the denominators match, and we can add the numerators: 3/12 + 4/12 = 7/12.");
+        replyLines.push("Try another one with that in mind: what is 1/2 + 1/5?");
+        break;
+      case 'correct-simplified':
+        pushEvidence('common-denominators', 1, "I saw a correct common denominator (12) used for 1/4 + 1/3.", 'chat');
+        pushEvidence('adding-numerators', 1, "I saw the numerators added correctly once the denominators matched.", 'chat');
+        pushEvidence('simplifying-fractions', 1, "The final answer, 7/12, was already in lowest terms — no extra simplifying needed here, and you didn't over- or under-reduce it.", 'chat');
+        replyLines.push("7/12 — that's exactly right, and it's already fully simplified. You found the common denominator (12), added the numerators, and stopped at the right place.");
+        replyLines.push("Since that's solid, let's push a little further: what is 2/3 + 1/6?");
+        break;
+      case 'correct-unsimplified':
+        pushEvidence('common-denominators', 1, "I saw a correct common denominator used for 1/4 + 1/3.", 'chat');
+        pushEvidence('adding-numerators', 1, "I saw the numerators added correctly once the denominators matched.", 'chat');
+        pushEvidence('simplifying-fractions', -1, "I noticed the answer (" + parsed.num + "/" + parsed.den + ") was correct but not reduced to lowest terms, so I'm not yet sure simplifying is automatic for you.", 'chat');
+        replyLines.push(parsed.num + "/" + parsed.den + " is mathematically correct — nice work on the common denominator and the addition. It can still be simplified further, though: both " + parsed.num + " and " + parsed.den + " share a common factor. What do you get when you divide both by that factor?");
+        break;
+      case 'incorrect-other':
+        pushEvidence(null, 0, "I saw an answer (" + parsed.num + "/" + parsed.den + ") that doesn't match what I'd expect from any step I recognize yet.", 'chat');
+        replyLines.push("I see " + parsed.num + "/" + parsed.den + ", but I can't quite tell which step that came from. Can you show me the steps in between — or upload a photo of your work so I can look at it directly?");
+        break;
+      default:
+        replyLines.push("Tell me what you get for 1/4 + 1/3 — a fraction like 7/12, or however far you've gotten. If it's easier to show than type, you can upload a photo on the Upload tab.");
+        break;
+    }
+    return { replyText: replyLines.join('\n\n'), evidenceType: parsed.type };
+  }
+
+  function applyAttachmentEvidence(attachment){
+    var note = "I looked at the " + attachment.posLabel + " part of the work you attached from your upload.";
+    pushEvidence(null, 0, note, 'image');
+    return "Looking at the " + attachment.posLabel + " part of what you attached — ";
+  }
+
+  // ---------------- rendering: chat ----------------
+  var threadEl = document.getElementById('thread');
+  function renderThread(){
+    threadEl.innerHTML = '';
+    session.messages.forEach(function(m){
+      var wrap = document.createElement('div');
+      wrap.className = 'msg ' + (m.role === 'tutor' ? 'tutor' : 'student');
+      var label = document.createElement('div');
+      label.className = 'msg-label';
+      label.textContent = (m.role === 'tutor' ? 'Tuto' : 'You') + ' · ' + fmtTime(m.ts);
+      var bubble = document.createElement('div');
+      bubble.className = 'bubble';
+      bubble.style.whiteSpace = 'pre-line';
+      bubble.textContent = m.text;
+      wrap.appendChild(label);
+      wrap.appendChild(bubble);
+      if(m.attachment){
+        var chip = document.createElement('div');
+        chip.className = 'attach-chip';
+        chip.textContent = '📎 region: ' + m.attachment.posLabel + ' of your upload';
+        wrap.appendChild(chip);
+      }
+      threadEl.appendChild(wrap);
+    });
+    threadEl.scrollTop = threadEl.scrollHeight;
+  }
+
+  function renderLedger(){
+    var lists = [document.getElementById('ledger-list'), document.getElementById('ledger-list-2')];
+    lists.forEach(function(list){
+      if(!list) return;
+      list.innerHTML = '';
+      if(model.evidenceLog.length === 0){
+        var empty = document.createElement('div');
+        empty.className = 'ledger-empty';
+        empty.textContent = "Nothing yet — I'll start noting things as soon as you do some work.";
+        list.appendChild(empty);
+        return;
+      }
+      var entries = model.evidenceLog.slice().reverse();
+      entries.forEach(function(e){
+        var row = document.createElement('div');
+        var cls = 'ledger-entry ' + (e.sourceType === 'image' ? 'obs' : (e.delta > 0 ? 'pos' : (e.delta < 0 ? 'neg' : 'obs')));
+        row.className = cls;
+        var ts = document.createElement('div');
+        ts.className = 'ledger-ts';
+        ts.textContent = fmtTime(e.ts) + (e.sourceType === 'image' ? ' · from upload' : ' · from chat');
+        var note = document.createElement('div');
+        note.className = 'ledger-note';
+        note.textContent = e.note;
+        row.appendChild(ts);
+        if(e.skillId){
+          var sk = document.createElement('div');
+          sk.className = 'ledger-skill';
+          var def = SKILL_DEFS.filter(function(s){ return s.id === e.skillId; })[0];
+          sk.textContent = def ? def.name : e.skillId;
+          row.appendChild(sk);
+        }
+        row.appendChild(note);
+        list.appendChild(row);
+      });
+    });
+  }
+
+  function renderPendingAttach(){
+    var box = document.getElementById('pending-attach');
+    var label = document.getElementById('pending-attach-label');
+    if(session.pendingAttachment){
+      box.classList.add('show');
+      label.textContent = 'Attached: ' + session.pendingAttachment.posLabel + ' region of your upload';
+    } else {
+      box.classList.remove('show');
+    }
+  }
+
+  // ---------------- rendering: progress ----------------
+  function renderProgress(){
+    var summary = document.getElementById('progress-summary');
+    var totalEvidence = model.evidenceLog.filter(function(e){ return e.skillId; }).length;
+    if(totalEvidence === 0){
+      summary.textContent = "We haven't done enough together yet for me to have real opinions. Everything below is honestly unassessed.";
+    } else {
+      var solidCount = SKILL_DEFS.filter(function(s){ return skillStatus(s.id) === 'solid'; }).length;
+      if(solidCount === SKILL_DEFS.length){
+        summary.textContent = "You've shown me solid work across every piece of fraction addition I'm tracking. I'd feel comfortable moving you to a harder problem type.";
+      } else {
+        summary.textContent = "Here's what I've picked up so far, piece by piece — some of it I'm confident about, some of it I'm still watching.";
+      }
+    }
+
+    var grid = document.getElementById('skill-grid');
+    grid.innerHTML = '';
+    SKILL_DEFS.forEach(function(def){
+      var status = skillStatus(def.id);
+      var evidence = model.skills[def.id].evidence;
+      var card = document.createElement('div');
+      card.className = 'skill-card';
+
+      var name = document.createElement('div');
+      name.className = 'skill-name';
+      name.textContent = def.name;
+
+      var stamp = document.createElement('div');
+      stamp.className = 'stamp ' + status;
+      stamp.textContent = STATUS_LABEL[status];
+
+      var signal = document.createElement('div');
+      signal.className = 'signal-line';
+      signal.textContent = evidence.length === 0
+        ? "practice signals: none yet"
+        : "practice signals: " + evidence.length + " observation" + (evidence.length===1?'':'s');
+
+      var notesLabel = document.createElement('div');
+      notesLabel.className = 'notes-label';
+      notesLabel.textContent = 'My private notes';
+
+      card.appendChild(name);
+      card.appendChild(stamp);
+      card.appendChild(signal);
+      card.appendChild(notesLabel);
+
+      if(evidence.length === 0){
+        var none = document.createElement('div');
+        none.className = 'no-notes';
+        none.textContent = "I haven't seen anything that tests this yet, so I'm not going to guess.";
+        card.appendChild(none);
+      } else {
+        evidence.slice().reverse().forEach(function(e){
+          var note = document.createElement('div');
+          note.className = 'note-item';
+          note.textContent = e.note;
+          card.appendChild(note);
+        });
+      }
+      grid.appendChild(card);
+    });
+  }
+
+  // ---------------- chat send flow ----------------
+  function sendMessage(){
+    var input = document.getElementById('composer-input');
+    var text = input.value.trim();
+    var attachment = session.pendingAttachment;
+    if(!text && !attachment) return;
+
+    var userMsg = { id: uid('m'), role:'student', text: text || '(sent a work attachment without a written answer)', ts: nowTs() };
+    if(attachment) userMsg.attachment = { posLabel: attachment.posLabel };
+    session.messages.push(userMsg);
+
+    var replyParts = [];
+    if(attachment){
+      replyParts.push(applyAttachmentEvidence(attachment));
+    }
+
+    if(text){
+      var parsed = parseAnswer(text);
+      var result = applyTextEvidence(parsed);
+      replyParts.push(result.replyText);
+    } else if(attachment){
+      replyParts.push("I can see there's work there, but I'll need a written answer alongside it (a fraction like 7/12) before I can say anything definite about the steps.");
+    }
+
+    var tutorMsg = { id: uid('m'), role:'tutor', text: replyParts.join('\n\n'), ts: nowTs() + 1 };
+    session.messages.push(tutorMsg);
+
+    session.pendingAttachment = null;
+    input.value = '';
+
+    renderThread();
+    renderLedger();
+    renderPendingAttach();
+    renderProgress();
+    saveSession();
+    saveModel();
+  }
+
+  // ---------------- upload flow ----------------
+  var previewArea = document.getElementById('preview-area');
+  var uploadActions = document.getElementById('upload-actions');
+  var uploadStatus = document.getElementById('upload-status');
+  var detectedRegion = null;
+
+  function handleFile(file){
+    if(!file || (file.type !== 'image/jpeg' && file.type !== 'image/png')){
+      uploadStatus.textContent = 'Please choose a JPEG or PNG image.';
+      uploadStatus.style.color = 'var(--pen-red)';
+      return;
+    }
+    var reader = new FileReader();
+    reader.onload = function(e){
+      var img = new Image();
+      img.onload = function(){
+        // downscale for storage
+        var maxW = 900;
+        var scale = Math.min(1, maxW / img.naturalWidth);
+        var canvas = document.createElement('canvas');
+        canvas.width = Math.round(img.naturalWidth * scale);
+        canvas.height = Math.round(img.naturalHeight * scale);
+        var ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        var dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+
+        var id = uid('img');
+        currentImageId = id;
+        uploads.images.push({ id:id, dataUrl:dataUrl, w:canvas.width, h:canvas.height, region:null });
+        saveUploads();
+
+        previewArea.innerHTML = '';
+        var wrap = document.createElement('div');
+        wrap.className = 'preview-wrap';
+        var imgEl = document.createElement('img');
+        imgEl.src = dataUrl;
+        imgEl.id = 'preview-img';
+        wrap.appendChild(imgEl);
+        previewArea.appendChild(wrap);
+
+        uploadActions.style.display = 'flex';
+        document.getElementById('attach-btn').style.display = 'none';
+        detectedRegion = null;
+        uploadStatus.textContent = 'Stored. Ready to analyze.';
+        uploadStatus.style.color = 'var(--check-green)';
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function detectRegionOnCanvas(dataUrl){
+    return new Promise(function(resolve){
+      var img = new Image();
+      img.onload = function(){
+        var gridW = 60, gridH = Math.max(1, Math.round(60 * img.naturalHeight / img.naturalWidth));
+        var canvas = document.createElement('canvas');
+        canvas.width = gridW; canvas.height = gridH;
+        var ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, gridW, gridH);
+        var data = ctx.getImageData(0,0,gridW,gridH).data;
+        var brightness = [];
+        var sum = 0;
+        for(var i=0;i<gridW*gridH;i++){
+          var r = data[i*4], g = data[i*4+1], b = data[i*4+2];
+          var bright = (r+g+b)/3;
+          brightness.push(bright);
+          sum += bright;
+        }
+        var mean = sum / brightness.length;
+        var variance = brightness.reduce(function(a,v){ return a + (v-mean)*(v-mean); },0) / brightness.length;
+        var stddev = Math.sqrt(variance);
+        var threshold = mean - 0.5*stddev;
+
+        var minX=gridW, maxX=0, minY=gridH, maxY=0, found=false;
+        for(var y=0;y<gridH;y++){
+          for(var x=0;x<gridW;x++){
+            if(brightness[y*gridW+x] < threshold){
+              found = true;
+              if(x<minX)minX=x; if(x>maxX)maxX=x;
+              if(y<minY)minY=y; if(y>maxY)maxY=y;
+            }
+          }
+        }
+        var xPct,yPct,wPct,hPct;
+        if(!found || (maxX-minX)/gridW > 0.9){
+          // fallback: central region
+          xPct = 20; yPct = 25; wPct = 60; hPct = 45;
+        } else {
+          var padX = (maxX-minX)*0.1, padY = (maxY-minY)*0.1;
+          var x0 = Math.max(0, minX-padX), x1 = Math.min(gridW, maxX+padX);
+          var y0 = Math.max(0, minY-padY), y1 = Math.min(gridH, maxY+padY);
+          xPct = (x0/gridW)*100; yPct = (y0/gridH)*100;
+          wPct = ((x1-x0)/gridW)*100; hPct = ((y1-y0)/gridH)*100;
+          wPct = Math.max(wPct, 15); hPct = Math.max(hPct, 15);
+        }
+        var cx = xPct + wPct/2, cy = yPct + hPct/2;
+        var hLabel = cx < 33 ? 'left' : (cx < 66 ? 'middle' : 'right');
+        var vLabel = cy < 33 ? 'upper' : (cy < 66 ? 'middle' : 'lower');
+        var posLabel = (vLabel === 'middle' && hLabel === 'middle') ? 'center' : (vLabel + '-' + hLabel);
+        resolve({ xPct:xPct, yPct:yPct, wPct:wPct, hPct:hPct, posLabel:posLabel });
+      };
+      img.src = dataUrl;
+    });
+  }
+
+  function drawRegionOverlay(region){
+    var wrap = previewArea.querySelector('.preview-wrap');
+    var existing = wrap.querySelector('.region-box');
+    if(existing) existing.remove();
+    var box = document.createElement('div');
+    box.className = 'region-box';
+    box.style.left = region.xPct + '%';
+    box.style.top = region.yPct + '%';
+    box.style.width = region.wPct + '%';
+    box.style.height = region.hPct + '%';
+    wrap.appendChild(box);
+  }
+
+  // ---------------- tabs ----------------
+  function switchTab(name){
+    document.querySelectorAll('.tab').forEach(function(t){
+      t.classList.toggle('active', t.dataset.tab === name);
+    });
+    ['chat','upload','progress'].forEach(function(v){
+      document.getElementById('view-' + v).classList.toggle('visible', v === name);
+    });
+    if(name === 'progress') renderProgress();
+  }
+
+  // ---------------- wiring ----------------
+  function init(){
+    document.getElementById('continue-btn').addEventListener('click', function(){
+      document.getElementById('gate').style.display = 'none';
+      document.getElementById('main').style.display = 'flex';
+    });
+
+    document.querySelectorAll('.tab').forEach(function(t){
+      t.addEventListener('click', function(){ switchTab(t.dataset.tab); });
+    });
+
+    document.getElementById('send-btn').addEventListener('click', sendMessage);
+    document.getElementById('composer-input').addEventListener('keydown', function(e){
+      if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); sendMessage(); }
+    });
+    document.getElementById('pending-attach-remove').addEventListener('click', function(){
+      session.pendingAttachment = null;
+      renderPendingAttach();
+      saveSession();
+    });
+
+    var fileInput = document.getElementById('file-input');
+    fileInput.addEventListener('change', function(e){
+      if(e.target.files && e.target.files[0]) handleFile(e.target.files[0]);
+    });
+    var dropzone = document.getElementById('dropzone');
+    dropzone.addEventListener('dragover', function(e){ e.preventDefault(); dropzone.style.background = 'var(--paper-dark)'; });
+    dropzone.addEventListener('dragleave', function(){ dropzone.style.background = ''; });
+    dropzone.addEventListener('drop', function(e){
+      e.preventDefault();
+      dropzone.style.background = '';
+      if(e.dataTransfer.files && e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+    });
+
+    document.getElementById('detect-btn').addEventListener('click', function(){
+      var record = uploads.images.filter(function(im){ return im.id === currentImageId; })[0];
+      if(!record) return;
+      uploadStatus.textContent = 'Analyzing...';
+      uploadStatus.style.color = 'var(--ink-soft)';
+      detectRegionOnCanvas(record.dataUrl).then(function(region){
+        detectedRegion = region;
+        record.region = region;
+        saveUploads();
+        drawRegionOverlay(region);
+        document.getElementById('attach-btn').style.display = 'inline-block';
+        uploadStatus.textContent = 'Region detected (' + region.posLabel + '). You can attach it to your next message.';
+        uploadStatus.style.color = 'var(--check-green)';
+      });
+    });
+
+    document.getElementById('attach-btn').addEventListener('click', function(){
+      if(!detectedRegion || !currentImageId) return;
+      session.pendingAttachment = { imageId: currentImageId, posLabel: detectedRegion.posLabel };
+      saveSession();
+      switchTab('chat');
+      renderPendingAttach();
+      document.getElementById('composer-input').focus();
+    });
+
+    loadAll().then(function(){
+      renderThread();
+      renderLedger();
+      renderPendingAttach();
+      renderProgress();
+    });
+  }
+
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script>
+</body>
+</html>
