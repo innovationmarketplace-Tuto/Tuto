@@ -1,10 +1,11 @@
 import { useRef, type Dispatch, type SetStateAction } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TextInput, View, type NativeSyntheticEvent, type TextInputKeyPressEventData } from 'react-native';
 
 import { Spacing } from '@/constants/theme';
 import type { LearnerMessageRecord, LearnerRecord } from '@/features/learners/client';
 import type { LearnerSessionStatus, SessionSendState } from '@/hooks/use-learner-session';
 import { useTheme } from '@/hooks/use-theme';
+import { MathText } from '@/components/math-text';
 import { Button, EmptyState, IconButton, InlineNotice, LoadingLines, Pill, ProductIcon, ProductText, Surface } from '@/components/product-primitives';
 
 export function LearnerSession({
@@ -73,6 +74,16 @@ export function LearnerSession({
             value={input}
             onChangeText={setInput}
             onSubmitEditing={() => void onSend()}
+            onKeyPress={(event: NativeSyntheticEvent<TextInputKeyPressEventData>) => {
+              if (Platform.OS !== 'web') return;
+              // On web, TextInput forwards the raw DOM keyboard event as `event`
+              // itself (not nested under nativeEvent) — see react-native-web's TextInput.
+              const webEvent = event as unknown as { key: string; shiftKey?: boolean; preventDefault: () => void };
+              if (webEvent.key === 'Enter' && !webEvent.shiftKey) {
+                webEvent.preventDefault();
+                void onSend();
+              }
+            }}
             placeholder="What would you like help with?"
             placeholderTextColor={theme.textSecondary}
             returnKeyType="send"
@@ -95,7 +106,7 @@ function MessageBubble({ message, learner }: { message: LearnerMessageRecord; le
     <View style={[styles.messageRow, isStudent ? styles.studentRow : styles.tutorRow]}>
       {!isStudent ? <View style={[styles.tinyAvatar, { backgroundColor: theme.primary }]}><ProductIcon name="sparkle" size={11} color="#FFFFFF" /></View> : null}
       <View style={[styles.bubbleGroup, isStudent ? styles.studentGroup : styles.tutorGroup]}>
-        <View style={[styles.bubble, isStudent ? { backgroundColor: theme.primary } : { backgroundColor: theme.primarySoft }]}><ProductText variant="body" color={isStudent ? '#FFFFFF' : theme.text}>{message.text}</ProductText></View>
+        <View style={[styles.bubble, isStudent ? { backgroundColor: theme.primary } : { backgroundColor: theme.primarySoft }]}><MathText text={message.text} color={isStudent ? '#FFFFFF' : theme.text} /></View>
         <ProductText variant="caption" color={theme.textSecondary}>{isStudent ? 'You' : 'Tuto'} · {formatTimestamp(message.createdAt)}</ProductText>
       </View>
     </View>

@@ -167,6 +167,23 @@ function textItems(payload: JsonObject, keys: string[]): JsonObject[] {
   return source.map(object).filter((item): item is JsonObject => Boolean(item));
 }
 
+/**
+ * Some BDA projects are configured with only element (layout) granularity
+ * and never emit text_lines/text_words at all. Fall back to the TEXT
+ * elements, which carry the same id/locations/representation.text shape
+ * text_lines would, just at paragraph rather than line granularity.
+ */
+function elementLineItems(payload: JsonObject): JsonObject[] {
+  return array(payload, "elements")
+    .map(object)
+    .filter((item): item is JsonObject => Boolean(item))
+    .filter((item) => item.type === "TEXT")
+    .flatMap((item) => {
+      const text = string(object(item.representation)?.text);
+      return text ? [{ id: item.id, text, locations: item.locations }] : [];
+    });
+}
+
 function stableSort(items: JsonObject[], sizes: { width?: number; height?: number }): JsonObject[] {
   return [...items].sort((left, right) => {
     const leftBox = boundsFromPolygon(polygonFromItem(left, sizes));
@@ -206,8 +223,12 @@ export function regionsFromBda(
   const revision = options.revision ?? 1;
   const payload = standardPayload(raw);
   const sizes = payload ? dimensions(payload) : {};
-  const lineItems = stableSort(payload ? textItems(payload, ["text_lines", "textLines"]) : [], sizes);
   const wordItems = stableSort(payload ? textItems(payload, ["text_words", "textWords"]) : [], sizes);
+  const rawLineItems = payload ? textItems(payload, ["text_lines", "textLines"]) : [];
+  const lineItems = stableSort(
+    rawLineItems.length > 0 || wordItems.length > 0 || !payload ? rawLineItems : elementLineItems(payload),
+    sizes,
+  );
   const detected: DetectedRegion[] = [];
   const lineIds = new Map<string, string>();
   lineItems.forEach((item, index) => {

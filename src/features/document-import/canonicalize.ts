@@ -35,8 +35,12 @@ export async function canonicalizeLocalImage(asset: {
   // web sources), so only resize when they look usable.
   const longestSide = Math.max(asset.width, asset.height);
   if (Number.isFinite(longestSide) && longestSide > MAX_DIMENSION) {
+    // Omit `height` rather than passing `null`: expo-image-manipulator's web
+    // resize action only treats `undefined` as "auto-calculate from ratio" —
+    // an explicit `null` is rounded to 0, which makes the canvas polyfill
+    // call `createImageData(width, 0)` and throw.
     const targetWidth = Math.max(1, Math.round(asset.width * (MAX_DIMENSION / longestSide)));
-    context.resize({ width: targetWidth, height: null });
+    context.resize({ width: targetWidth });
   }
   const rendered = await context.renderAsync();
   const result = await rendered.saveAsync({ format: SaveFormat.JPEG, compress: 0.84 });

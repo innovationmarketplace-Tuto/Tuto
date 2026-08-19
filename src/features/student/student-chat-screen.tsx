@@ -6,13 +6,15 @@ import { LearnerSession as LearnerSessionPanel } from '@/components/learner-sess
 import { ConversationHistory } from '@/components/conversation-history';
 import { InlineNotice, Pill, ProductText } from '@/components/product-primitives';
 import { StudentNavigation } from '@/components/student-navigation';
-import { Colors, ProductMaxWidth, Spacing } from '@/constants/theme';
+import { ProductMaxWidth, Spacing } from '@/constants/theme';
 import { useTutoAuth } from '@/features/auth/auth-boundary';
 import type { LearnerRecord } from '@/features/learners/client';
 import { useLearnerSession } from '@/hooks/use-learner-session';
+import { useTheme } from '@/hooks/use-theme';
 
 /** Full-height conversation destination. Saved messages are restored by the session hook. */
 export function StudentChatScreen({ profile }: { profile: LearnerRecord }) {
+  const theme = useTheme();
   const auth = useTutoAuth();
   const { width } = useWindowDimensions();
   const isCompact = width < 820;
@@ -29,15 +31,15 @@ export function StudentChatScreen({ profile }: { profile: LearnerRecord }) {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
-      <View style={styles.root}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]} edges={['top', 'left', 'right']}>
+      <View style={[styles.root, { backgroundColor: theme.background }]}>
         <StudentNavigation profile={profile} onSignOut={() => void signOut()} />
         <View style={[styles.content, isCompact && styles.contentCompact]}>
           <View style={[styles.pageHeading, isCompact && styles.pageHeadingCompact]}>
             <View style={styles.headingCopy}>
-              <ProductText variant="eyebrow" color={Colors.light.primary}>Chat</ProductText>
+              <ProductText variant="eyebrow" color={theme.primary}>Chat</ProductText>
               <ProductText variant="heading" style={styles.title}>Your tutor, whenever you&apos;re ready.</ProductText>
-              <ProductText variant="caption" color={Colors.light.textSecondary}>
+              <ProductText variant="caption" color={theme.textSecondary}>
                 Your saved conversation history stays here, ready for the next question.
               </ProductText>
             </View>
@@ -71,8 +73,8 @@ export function StudentChatScreen({ profile }: { profile: LearnerRecord }) {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: Colors.light.background },
-  root: { flex: 1, backgroundColor: Colors.light.background },
+  safeArea: { flex: 1 },
+  root: { flex: 1 },
   content: {
     flex: 1,
     width: '100%',

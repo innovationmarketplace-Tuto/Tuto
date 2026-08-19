@@ -1,9 +1,10 @@
 import { Link, usePathname, type Href } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 
-import { Avatar, Button, ProductIcon, ProductText } from '@/components/product-primitives';
-import { Colors, Spacing } from '@/constants/theme';
+import { Avatar, Button, IconButton, ProductIcon, ProductText } from '@/components/product-primitives';
+import { Spacing } from '@/constants/theme';
 import type { LearnerRecord } from '@/features/learners/client';
+import { useColorSchemeToggle, useTheme } from '@/hooks/use-theme';
 
 type StudentNavigationHref = '/' | '/chat' | '/worksheet';
 
@@ -24,30 +25,38 @@ export function StudentNavigation({
   profile: LearnerRecord;
   onSignOut: () => void;
 }) {
+  const theme = useTheme();
+  const { scheme, toggleScheme } = useColorSchemeToggle();
   const pathname = usePathname();
   const { width } = useWindowDimensions();
   const isCompact = width < 680;
 
   return (
-    <View style={styles.navigation}>
+    <View style={[styles.navigation, { backgroundColor: theme.backgroundElement, borderBottomColor: theme.border }]}>
       <View style={styles.headerRow}>
         <View style={styles.brand}>
-          <View style={styles.logoSmall}>
+          <View style={[styles.logoSmall, { backgroundColor: theme.primary }]}>
             <ProductIcon name="sparkle" size={17} color="#FFFFFF" />
           </View>
           <View>
             <ProductText variant="heading">tuto</ProductText>
-            {!isCompact ? <ProductText variant="caption" color={Colors.light.textSecondary}>Your learning companion</ProductText> : null}
+            {!isCompact ? <ProductText variant="caption" color={theme.textSecondary}>Your learning companion</ProductText> : null}
           </View>
         </View>
 
         {!isCompact ? <NavigationLinks pathname={pathname} /> : null}
 
         <View style={styles.profileActions}>
+          <IconButton
+            label={scheme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            icon={scheme === 'dark' ? 'sun' : 'moon'}
+            variant="outline"
+            onPress={toggleScheme}
+          />
           <Avatar
             initials={initials(profile.displayName)}
-            backgroundColor={Colors.light.primarySoft}
-            textColor={Colors.light.primary}
+            backgroundColor={theme.primarySoft}
+            textColor={theme.primary}
             size={36}
           />
           {!isCompact ? <ProductText variant="bodyMedium" numberOfLines={1} style={styles.profileName}>{profile.displayName}</ProductText> : null}
@@ -70,6 +79,7 @@ export function StudentNavigation({
 }
 
 function NavigationLinks({ pathname }: { pathname: string }) {
+  const theme = useTheme();
   return (
     <View style={styles.links}>
       {navigationItems.map((item) => {
@@ -81,12 +91,12 @@ function NavigationLinks({ pathname }: { pathname: string }) {
               accessibilityState={{ selected: isActive }}
               style={({ pressed }) => [
                 styles.link,
-                isActive && styles.linkActive,
+                isActive && { backgroundColor: theme.primarySoft },
                 pressed && styles.pressed,
               ]}
             >
-              <ProductIcon name={item.icon} size={16} color={isActive ? Colors.light.primary : Colors.light.textSecondary} />
-              <ProductText variant="label" color={isActive ? Colors.light.primary : Colors.light.textSecondary}>{item.label}</ProductText>
+              <ProductIcon name={item.icon} size={16} color={isActive ? theme.primary : theme.textSecondary} />
+              <ProductText variant="label" color={isActive ? theme.primary : theme.textSecondary}>{item.label}</ProductText>
             </Pressable>
           </Link>
         );
@@ -106,9 +116,7 @@ const styles = StyleSheet.create({
     minHeight: 72,
     paddingHorizontal: Spacing.four,
     paddingVertical: Spacing.two,
-    backgroundColor: Colors.light.backgroundElement,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.light.border,
     gap: Spacing.two,
   },
   headerRow: {
@@ -119,11 +127,10 @@ const styles = StyleSheet.create({
     gap: Spacing.three,
   },
   brand: { flexDirection: 'row', alignItems: 'center', gap: 9, minWidth: 96 },
-  logoSmall: { width: 34, height: 34, borderRadius: 12, backgroundColor: Colors.light.primary, alignItems: 'center', justifyContent: 'center' },
+  logoSmall: { width: 34, height: 34, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   links: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   compactLinks: { gap: 4, paddingRight: Spacing.two },
   link: { minHeight: 38, paddingHorizontal: 11, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 7 },
-  linkActive: { backgroundColor: Colors.light.primarySoft },
   profileActions: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   profileName: { maxWidth: 160 },
   pressed: { opacity: 0.75 },

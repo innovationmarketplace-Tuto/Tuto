@@ -4,22 +4,27 @@ import { ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { LearnerSession } from '@/components/learner-session';
-import { Button, EmptyState, InlineNotice, LoadingLines, Pill, ProductIcon, ProductText, Surface } from '@/components/product-primitives';
+import { Button, EmptyState, InlineNotice, LoadingLines, ProductIcon, ProductText, Surface } from '@/components/product-primitives';
 import { StudentNavigation } from '@/components/student-navigation';
 import { WorksheetCanvasPanel } from '@/components/worksheet-canvas';
 import { WorksheetHistory } from '@/components/worksheet-history';
-import { Colors, ProductMaxWidth, Spacing } from '@/constants/theme';
+import { ProductMaxWidth, Spacing } from '@/constants/theme';
 import { useTutoAuth } from '@/features/auth/auth-boundary';
 import { canonicalizeLocalImage } from '@/features/document-import/canonicalize';
 import type { LocalDocumentAsset } from '@/features/document-import/upload';
 import type { LearnerRecord } from '@/features/learners/client';
 import { useDocumentAnalysis } from '@/hooks/use-document-analysis';
 import { useLearnerSession } from '@/hooks/use-learner-session';
+import { useTheme } from '@/hooks/use-theme';
 import { useTutorAnnotations } from '@/hooks/use-tutor-annotations';
 import { useWorksheetHistory } from '@/hooks/use-worksheet-history';
 
+/** Floor for the chat column's height on wide layouts, even with a short worksheet. */
+const MinChatHeight = 520;
+
 /** A page-focused learning workspace: worksheet canvas plus contextual tutor. */
 export function StudentWorksheetScreen({ profile }: { profile: LearnerRecord }) {
+  const theme = useTheme();
   const auth = useTutoAuth();
   const { width } = useWindowDimensions();
   const isWide = width >= 980;
@@ -27,6 +32,7 @@ export function StudentWorksheetScreen({ profile }: { profile: LearnerRecord }) 
   const [selectedRegionId, setSelectedRegionId] = useState<string | null>(null);
   const [pickerError, setPickerError] = useState<string | null>(null);
   const [signOutError, setSignOutError] = useState<string | null>(null);
+  const [documentHeight, setDocumentHeight] = useState<number | null>(null);
   const kickoffAttemptedRef = useRef<string | null>(null);
 
   const pageId = analysis.isComplete && analysis.workflow ? String(analysis.workflow.pageId) : undefined;
@@ -54,6 +60,13 @@ export function StudentWorksheetScreen({ profile }: { profile: LearnerRecord }) 
     [analysis.regions],
   );
 
+  // Boilerplate like a "Name:" header line is often the first detected region on the
+  // page — prefer an actual problem/equation/step as the default focus instead.
+  const defaultRegion = useMemo(() => {
+    const substantiveKinds = new Set(['problem', 'equation', 'solution_step']);
+    return selectableRegions.find((region) => substantiveKinds.has(region.kind)) ?? selectableRegions[0] ?? null;
+  }, [selectableRegions]);
+
   useEffect(() => {
     if (!analysis.isComplete) {
       setSelectedRegionId(null);
@@ -62,14 +75,9 @@ export function StudentWorksheetScreen({ profile }: { profile: LearnerRecord }) 
     setSelectedRegionId((current) => (
       current && selectableRegions.some((region) => region.id === current)
         ? current
-        : selectableRegions[0]?.id ?? null
+        : defaultRegion?.id ?? null
     ));
-  }, [analysis.isComplete, selectableRegions]);
-
-  const selectedRegion = useMemo(
-    () => analysis.regions.find((region) => region.id === selectedRegionId) ?? null,
-    [analysis.regions, selectedRegionId],
-  );
+  }, [analysis.isComplete, defaultRegion, selectableRegions]);
 
   useEffect(() => {
     if (!pageId || pageRevision === undefined || !sessionThreadId || analysis.isLoadingRegions) return;
@@ -142,8 +150,8 @@ export function StudentWorksheetScreen({ profile }: { profile: LearnerRecord }) 
   const workflowError = pickerError ?? analysis.error;
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
-      <View style={styles.root}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]} edges={['top', 'left', 'right']}>
+      <View style={[styles.root, { backgroundColor: theme.background }]}>
         <StudentNavigation profile={profile} onSignOut={() => void signOut()} />
         <ScrollView
           style={styles.pageScroll}
@@ -153,13 +161,13 @@ export function StudentWorksheetScreen({ profile }: { profile: LearnerRecord }) 
         >
           <View style={styles.headingRow}>
             <View style={styles.headingCopy}>
-              <ProductText variant="eyebrow" color={Colors.light.primary}>Worksheet studio</ProductText>
+              <ProductText variant="eyebrow" color={theme.primary}>Worksheet studio</ProductText>
               <ProductText variant="heading" style={styles.title}>Show your work. Talk through the exact step.</ProductText>
-              <ProductText variant="caption" color={Colors.light.textSecondary}>
+              <ProductText variant="caption" color={theme.textSecondary}>
                 Select a detected part, ask your tutor about it, and see the tutor&apos;s notes directly on the page.
               </ProductText>
             </View>
-            {page ? <Button tone="outline" icon="scan" onPress={() => void choosePage()}>Replace page</Button> : null}
+            {page ? <Button tone="outline" icon="scan" onPress={() => void choosePage()}>Upload new worksheet</Button> : null}
           </View>
 
           {signOutError ? <InlineNotice tone="danger" icon="refresh">{signOutError}</InlineNotice> : null}
@@ -175,7 +183,7 @@ export function StudentWorksheetScreen({ profile }: { profile: LearnerRecord }) 
             </InlineNotice>
           ) : null}
 
-          <Surface style={styles.historyPanel} elevated>
+          <Surface style={[styles.historyPanel, { backgroundColor: theme.backgroundElement }]} elevated>
             <WorksheetHistory
               items={worksheetHistory.worksheets}
               selectedPageId={pageId}
@@ -186,9 +194,9 @@ export function StudentWorksheetScreen({ profile }: { profile: LearnerRecord }) 
           </Surface>
 
           <View style={[styles.workspace, !isWide && styles.workspaceStack]}>
-            <View style={styles.documentColumn}>
+            <View style={styles.documentColumn} onLayout={(event) => setDocumentHeight(event.nativeEvent.layout.height)}>
               {!analysis.workflow && !workflowError ? (
-                <Surface style={styles.emptyDocument} elevated>
+                <Surface style={[styles.emptyDocument, { backgroundColor: theme.backgroundElement }]} elevated>
                   <EmptyState
                     icon="scan"
                     title="Add a worksheet"
@@ -199,9 +207,9 @@ export function StudentWorksheetScreen({ profile }: { profile: LearnerRecord }) 
               ) : null}
 
               {analysis.isUploading || analysis.isProcessing ? (
-                <Surface style={styles.processing} elevated>
+                <Surface style={[styles.processing, { backgroundColor: theme.backgroundElement }]} elevated>
                   <View style={styles.processingTitle}>
-                    <ProductIcon name="clock" size={18} color={Colors.light.primary} />
+                    <ProductIcon name="clock" size={18} color={theme.primary} />
                     <ProductText variant="bodyMedium">{phaseLabel(analysis.phase)}</ProductText>
                   </View>
                   <LoadingLines lines={4} />
@@ -228,20 +236,13 @@ export function StudentWorksheetScreen({ profile }: { profile: LearnerRecord }) 
               ) : null}
             </View>
 
-            <View style={[styles.chatColumn, !isWide && styles.chatColumnStack]}>
-              <View style={styles.contextBar}>
-                <View style={styles.contextCopy}>
-                  <ProductText variant="label">Tutor context</ProductText>
-                  <ProductText variant="caption" color={Colors.light.textSecondary} numberOfLines={2}>
-                    {selectedRegion?.transcription
-                      ? selectedRegion.transcription
-                      : page
-                        ? 'Choose a detected part, then ask what to check.'
-                        : 'Add a worksheet to make this chat page-aware.'}
-                  </ProductText>
-                </View>
-                {selectedRegion ? <Pill tone="primary">{regionName(selectedRegion.kind)}</Pill> : null}
-              </View>
+            <View
+              style={[
+                styles.chatColumn,
+                !isWide && styles.chatColumnStack,
+                isWide ? { height: Math.max(documentHeight ?? 0, MinChatHeight) } : null,
+              ]}
+            >
               <LearnerSession
                 learner={profile}
                 {...session}
@@ -267,14 +268,9 @@ function phaseLabel(phase: ReturnType<typeof useDocumentAnalysis>['phase']): str
   }
 }
 
-function regionName(kind: string): string {
-  const value = kind.replace(/_/g, ' ');
-  return value.charAt(0).toUpperCase() + value.slice(1);
-}
-
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: Colors.light.background },
-  root: { flex: 1, backgroundColor: Colors.light.background },
+  safeArea: { flex: 1 },
+  root: { flex: 1 },
   pageScroll: { flex: 1 },
   content: { flexGrow: 1, width: '100%', maxWidth: ProductMaxWidth + 160, alignSelf: 'center', padding: Spacing.three, gap: Spacing.three },
   contentCompact: { paddingHorizontal: Spacing.two, paddingTop: Spacing.two },
@@ -285,12 +281,10 @@ const styles = StyleSheet.create({
   workspaceStack: { flexDirection: 'column' },
   documentColumn: { flex: 1, minWidth: 0, minHeight: 0 },
   documentContent: { gap: Spacing.two, paddingBottom: Spacing.three },
-  emptyDocument: { flex: 1, minHeight: 400, justifyContent: 'center', backgroundColor: Colors.light.backgroundElement },
-  processing: { flex: 1, minHeight: 400, justifyContent: 'center', gap: Spacing.three, backgroundColor: Colors.light.backgroundElement },
+  emptyDocument: { flex: 1, minHeight: 400, justifyContent: 'center' },
+  processing: { flex: 1, minHeight: 400, justifyContent: 'center', gap: Spacing.three },
   processingTitle: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  chatColumn: { width: 390, minWidth: 340, minHeight: 0, gap: Spacing.two },
+  chatColumn: { width: 390, minWidth: 340, minHeight: 0 },
   chatColumnStack: { width: '100%', minWidth: 0, minHeight: 560 },
-  contextBar: { minHeight: 58, borderWidth: 1, borderColor: Colors.light.border, borderRadius: 15, backgroundColor: Colors.light.backgroundElement, paddingHorizontal: 12, paddingVertical: 9, flexDirection: 'row', alignItems: 'center', gap: 10 },
-  contextCopy: { flex: 1, minWidth: 0, gap: 1 },
-  historyPanel: { backgroundColor: Colors.light.backgroundElement },
+  historyPanel: {},
 });

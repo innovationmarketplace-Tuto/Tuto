@@ -176,6 +176,40 @@ test("BDA geometry adapter reads DOCUMENT-modality output (top-level text_lines,
   assert.equal(result.regions[1]?.parentRegionId, "line-001");
 });
 
+test("BDA geometry adapter falls back to TEXT elements when the project has no line/word granularity", () => {
+  // Some BDA projects are configured with element (layout) granularity only,
+  // so text_lines/text_words never appear anywhere in the payload — only
+  // `elements`. Without a fallback, pages from these projects always throw
+  // "no readable text geometry" in AwsBdaDocumentAnalyzer.analyze.
+  const result = regionsFromBda({
+    metadata: { semantic_modality: "DOCUMENT" },
+    document: { statistics: { element_count: 1 } },
+    pages: [{ id: "page-1", page_index: 0 }],
+    elements: [
+      {
+        id: "element-a",
+        type: "TEXT",
+        representation: { text: "x = 6" },
+        reading_order: 1,
+        page_indices: [0],
+        locations: [{ page_index: 0, bounding_box: { left: 0.1, top: 0.2, width: 0.5, height: 0.1 } }],
+        sub_type: "PARAGRAPH",
+      },
+      {
+        id: "figure-a",
+        type: "FIGURE",
+        representation: { text: "a chart" },
+        page_indices: [0],
+        locations: [{ page_index: 0, bounding_box: { left: 0, top: 0, width: 1, height: 1 } }],
+      },
+    ],
+  }, { pageId: "page-001", revision: 1 });
+  assert.equal(result.lineCount, 1);
+  assert.equal(result.wordCount, 0);
+  assert.equal(result.regions.length, 1);
+  assert.equal(result.regions[0]?.transcription, "x = 6");
+});
+
 test("Nova semantic mapping accepts only existing region IDs and never returns coordinates", () => {
   const mapping = mapNovaResponse({
     transcription: "x = 6",

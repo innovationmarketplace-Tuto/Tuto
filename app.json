@@ -4,13 +4,18 @@
     "description": "A universal tutoring prototype with inspectable learner memory.",
     "slug": "tuto",
     "version": "1.0.0",
-    "platforms": ["ios", "android", "web"],
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ],
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "tuto",
     "userInterfaceStyle": "light",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "icon": "./assets/expo.icon",
+      "bundleIdentifier": "com.lj3954.tuto"
     },
     "android": {
       "adaptiveIcon": {
@@ -50,6 +55,13 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "c8cb85dc-5e01-480d-9104-e9227ba0c090"
+      }
+    },
+    "owner": "lj3954"
   }
 }

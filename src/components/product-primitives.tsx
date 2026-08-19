@@ -13,7 +13,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 
-import { Colors, Fonts, Spacing } from '@/constants/theme';
+import { Fonts, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 export type ProductTone = 'neutral' | 'primary' | 'mint' | 'peach' | 'yellow' | 'purple' | 'danger';
@@ -46,7 +46,9 @@ export type ProductIconName =
   | 'target'
   | 'message'
   | 'clock'
-  | 'dots';
+  | 'dots'
+  | 'sun'
+  | 'moon';
 
 const iconGlyphs: Record<ProductIconName, string> = {
   sparkle: '✦',
@@ -67,6 +69,8 @@ const iconGlyphs: Record<ProductIconName, string> = {
   message: '◌',
   clock: '◷',
   dots: '•••',
+  sun: '☀',
+  moon: '☾',
 };
 
 export function ProductIcon({ name, size = 18, color, style }: { name: ProductIconName; size?: number; color?: string; style?: TextStyle }) {
@@ -239,8 +243,6 @@ export function InlineNotice({ children, tone = 'neutral', icon = 'info', action
     </View>
   );
 }
-
-export const productColors = Colors.light;
 
 const styles = StyleSheet.create({
   display: { fontSize: 30, lineHeight: 36, fontWeight: '800', letterSpacing: -0.8 },

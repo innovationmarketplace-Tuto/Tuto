@@ -10,11 +10,13 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Colors, Spacing } from '@/constants/theme';
+import { Spacing } from '@/constants/theme';
 import { Button, InlineNotice, Pill, ProductIcon, ProductText, Surface } from '@/components/product-primitives';
 import { authErrorMessage, authNotConfiguredMessage, useTutoAuth } from '@/features/auth/auth-boundary';
+import { useTheme } from '@/hooks/use-theme';
 
 export function AuthScreen({ onAuthenticated }: { onAuthenticated?: () => void }) {
+  const theme = useTheme();
   const auth = useTutoAuth();
   const [mode, setMode] = useState<'sign_in' | 'sign_up'>('sign_in');
   const [email, setEmail] = useState('');
@@ -56,23 +58,23 @@ export function AuthScreen({ onAuthenticated }: { onAuthenticated?: () => void }
   const isLoading = auth.status === 'loading' || isSubmitting;
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
           <View style={styles.shell}>
             <View style={styles.brandRow}>
-              <View style={styles.logo}><ProductIcon name="sparkle" size={21} color="#FFFFFF" /></View>
+              <View style={[styles.logo, { backgroundColor: theme.primary }]}><ProductIcon name="sparkle" size={21} color="#FFFFFF" /></View>
               <View>
                 <ProductText variant="heading">tuto</ProductText>
-                <ProductText variant="caption" color={Colors.light.textSecondary}>Learning studio</ProductText>
+                <ProductText variant="caption" color={theme.textSecondary}>Learning studio</ProductText>
               </View>
             </View>
 
-            <Surface style={styles.card} elevated>
+            <Surface style={[styles.card, { backgroundColor: theme.backgroundElement }]} elevated>
               <View style={styles.cardHeading}>
                 <View style={styles.headingCopy}>
                   <ProductText variant="display" style={styles.title}>{mode === 'sign_in' ? 'Welcome back.' : 'Create your learning space.'}</ProductText>
-                  <ProductText variant="body" color={Colors.light.textSecondary}>
+                  <ProductText variant="body" color={theme.textSecondary}>
                     {mode === 'sign_in' ? 'Sign in to continue learning with your saved tutor sessions.' : 'Create an account to keep your questions, work, and progress private across devices.'}
                   </ProductText>
                 </View>
@@ -92,14 +94,14 @@ export function AuthScreen({ onAuthenticated }: { onAuthenticated?: () => void }
               </Button>
 
               <View style={styles.switchRow}>
-                <ProductText variant="caption" color={Colors.light.textSecondary}>{mode === 'sign_in' ? 'New to Tuto?' : 'Already have an account?'}</ProductText>
+                <ProductText variant="caption" color={theme.textSecondary}>{mode === 'sign_in' ? 'New to Tuto?' : 'Already have an account?'}</ProductText>
                 <Pressable accessibilityRole="button" onPress={() => { setMode(mode === 'sign_in' ? 'sign_up' : 'sign_in'); setError(null); }}>
-                  <ProductText variant="label" color={Colors.light.primary}>{mode === 'sign_in' ? 'Create an account' : 'Sign in instead'}</ProductText>
+                  <ProductText variant="label" color={theme.primary}>{mode === 'sign_in' ? 'Create an account' : 'Sign in instead'}</ProductText>
                 </Pressable>
               </View>
             </Surface>
 
-            <ProductText variant="caption" color={Colors.light.textSecondary} style={styles.privacyCopy}>
+            <ProductText variant="caption" color={theme.textSecondary} style={styles.privacyCopy}>
               Your learning data is scoped to your account. Tuto will never treat an unauthenticated client as the owner of your work.
             </ProductText>
           </View>
@@ -110,32 +112,33 @@ export function AuthScreen({ onAuthenticated }: { onAuthenticated?: () => void }
 }
 
 function Field({ label, ...props }: { label: string } & React.ComponentProps<typeof TextInput>) {
+  const theme = useTheme();
   return (
     <View style={styles.field}>
       <ProductText variant="label">{label}</ProductText>
       <TextInput
         {...props}
         accessibilityLabel={label}
-        placeholderTextColor={Colors.light.textSecondary}
-        style={styles.input}
+        placeholderTextColor={theme.textSecondary}
+        style={[styles.input, { borderColor: theme.border, color: theme.text, backgroundColor: theme.background }]}
       />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: Colors.light.background },
+  safeArea: { flex: 1 },
   flex: { flex: 1 },
   scrollContent: { flexGrow: 1, justifyContent: 'center', padding: Spacing.four },
   shell: { width: '100%', maxWidth: 560, alignSelf: 'center', gap: Spacing.three },
   brandRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 4 },
-  logo: { width: 40, height: 40, borderRadius: 14, backgroundColor: Colors.light.primary, alignItems: 'center', justifyContent: 'center' },
-  card: { gap: Spacing.three, backgroundColor: Colors.light.backgroundElement },
+  logo: { width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  card: { gap: Spacing.three },
   cardHeading: { gap: Spacing.two },
   headingCopy: { gap: Spacing.two },
   title: { fontSize: 28, lineHeight: 34 },
   field: { gap: 7 },
-  input: { minHeight: 48, borderWidth: 1, borderColor: Colors.light.border, borderRadius: 13, paddingHorizontal: 13, color: Colors.light.text, fontSize: 15, backgroundColor: Colors.light.background },
+  input: { minHeight: 48, borderWidth: 1, borderRadius: 13, paddingHorizontal: 13, fontSize: 15 },
   submitButton: { marginTop: 2 },
   switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
   privacyCopy: { textAlign: 'center', paddingHorizontal: Spacing.three },
