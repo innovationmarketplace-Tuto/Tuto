@@ -336,16 +336,17 @@ export const prepare = internalQuery({
       skills: activeSkills,
       subject: subjectContext.subject,
     });
-    // Worksheet text is authoritative for the current turn. A stale client or
+    // Worksheet text is authoritative for the current turn: a stale client or
     // session skill must not leak into a page-aware brief when the page has no
-    // matching canonical skill. Chat turns retain the prior IDs as continuity
-    // only when server-side text resolution found no stable match.
-    const hasAuthoritativeSource = requestedScope === "worksheet"
-      ? Boolean(args.pageId) || Boolean(subjectContext.text)
-      : Boolean(subjectContext.text);
+    // matching canonical skill, so an unresolved worksheet turn clears skill
+    // context entirely. Chat has no equivalent authoritative source in the
+    // message alone -- a vague follow-up ("keep going", "what about the other
+    // one") must retain the thread's prior skill instead of going blank.
+    const worksheetHasAuthoritativeSource = requestedScope === "worksheet"
+      && (Boolean(args.pageId) || Boolean(subjectContext.text));
     const resolvedCurrentSkillIds = resolvedFromContext.currentSkillIds.length > 0
       ? resolvedFromContext.currentSkillIds
-      : hasAuthoritativeSource
+      : worksheetHasAuthoritativeSource
         ? []
         : Array.from(new Set(requestedSkills)).slice(0, 20);
     const currentSkills: TeachingBriefSkill[] = [];
@@ -386,16 +387,21 @@ export const prepare = internalQuery({
     const allStates = [...currentStates, ...prerequisiteGaps];
     const activeMisconceptions = Array.from(new Set(allStates.flatMap((state: any) => state.misconceptionIds ?? [])));
     const currentSkillIdSet = new Set(currentSkillIds);
-    const episodes = currentSkillIdSet.size === 0
-      ? []
-      : (await (ctx.db as any)
-        .query("episodicSummaries")
-        .withIndex("by_student", (q: any) => q.eq("studentId", args.studentId))
-        .order("desc")
-        .take(30))
+    // A resolved skill gets topic-matched episodes. With no resolved skill at
+    // all (a brand-new thread with a vague first message, e.g. "remind me
+    // what I was working on"), fall back to the most recent episodes
+    // regardless of topic so a continuity question is not met with nothing.
+    const recentEpisodeRows = await (ctx.db as any)
+      .query("episodicSummaries")
+      .withIndex("by_student", (q: any) => q.eq("studentId", args.studentId))
+      .order("desc")
+      .take(30);
+    const episodes = currentSkillIdSet.size > 0
+      ? recentEpisodeRows
         .filter((episode: any) => Array.isArray(episode.skillIds)
           && episode.skillIds.some((skillId: unknown) => currentSkillIdSet.has(String(skillId))))
-        .slice(0, 5);
+        .slice(0, 5)
+      : recentEpisodeRows.slice(0, 3);
     const teachingBrief: TeachingBrief = {
       ...(subjectContext.objective ? {
         focus: {
@@ -655,6 +661,8 @@ export const complete = internalMutation({
     });
 
     const persistedEvidence: any[] = [];
+    const episodeSkillIds = new Set<string>();
+    const episodeNotes: string[] = [];
     for (let index = 0; index < candidateEvidence.length; index += 1) {
       const candidate = candidateEvidence[index];
       if (!candidate || typeof candidate !== "object") continue;
@@ -688,6 +696,32 @@ export const complete = internalMutation({
       });
       persistedEvidence.push({ _id: evidenceId, skillId: skill._id });
       await projectAndPersist(ctx, turn.studentId, skill._id, completedAt);
+      episodeSkillIds.add(String(skill._id));
+      const rationale = typeof candidate.rationale === "string" ? candidate.rationale.trim() : "";
+      const independenceNote = typeof candidate.independence === "string" ? `, ${candidate.independence}` : "";
+      episodeNotes.push(`${skill.name} (${candidate.outcome}${independenceNote})${rationale ? `: ${rationale}` : ""}`);
+    }
+
+    // A narrative record of "what happened last time" is a distinct memory
+    // layer from the numeric skill-mastery projection above: it is what lets a
+    // later chat turn answer "remind me what I was working on" instead of
+    // only ever updating mastery numbers silently in the background.
+    if (episodeNotes.length > 0) {
+      const summary = episodeNotes.join("; ").slice(0, 4_000);
+      const averageConfidence = candidateEvidence.reduce(
+        (sum: number, candidate: any) => sum + (Number(candidate?.confidence) || 0),
+        0,
+      ) / Math.max(1, candidateEvidence.length);
+      await (ctx.db as any).insert("episodicSummaries", {
+        studentId: turn.studentId,
+        ownerUserId: args.ownerUserId,
+        summary,
+        skillIds: Array.from(episodeSkillIds),
+        evidenceIds: persistedEvidence.map((item) => String(item._id)),
+        importance: Math.min(1, Math.max(0, averageConfidence)),
+        sourceThreadId: turn.threadId,
+        createdAt: completedAt,
+      });
     }
 
     const candidateFacts = Array.isArray(raw?.learnerFacts) ? raw.learnerFacts.slice(0, MAX_TUTOR_CANDIDATE_FACTS) : [];
