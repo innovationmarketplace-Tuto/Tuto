@@ -61,42 +61,73 @@ function renderMathSvg(latex: string, color: string, fontSizePx: number): MathSv
   }
 }
 
+/**
+ * Consecutive text/inline-math segments must stay inside a single Text tree so
+ * the platform's text layout can wrap them together; putting inline math in a
+ * sibling View instead (as flex row items) forces it onto its own line whenever
+ * the preceding text wraps, since each flex item occupies its own row slot.
+ * $$block$$ math breaks the run and renders as its own full-width element.
+ */
+type Run = { type: 'inline'; segments: Segment[] } | { type: 'block'; segment: Segment };
+
+function groupRuns(segments: Segment[]): Run[] {
+  const runs: Run[] = [];
+  let current: Segment[] = [];
+  for (const segment of segments) {
+    if (segment.type === 'math' && segment.display) {
+      if (current.length) {
+        runs.push({ type: 'inline', segments: current });
+        current = [];
+      }
+      runs.push({ type: 'block', segment });
+    } else {
+      current.push(segment);
+    }
+  }
+  if (current.length) runs.push({ type: 'inline', segments: current });
+  return runs;
+}
+
 /** Renders chat message text, treating $inline$ and $$block$$ spans as LaTeX. */
 export function MathText({ text, color, fontSize = 14 }: { text: string; color: string; fontSize?: number }) {
-  const segments = splitSegments(text);
+  const runs = groupRuns(splitSegments(text));
   const lineHeight = Math.round(fontSize * 1.5);
 
   return (
-    <View style={styles.wrap}>
-      {segments.map((segment, index) => {
-        if (segment.type === 'text') {
-          if (!segment.value) return null;
+    <View>
+      {runs.map((run, index) => {
+        if (run.type === 'block') {
+          const svg = renderMathSvg(run.segment.value, color, fontSize * 1.15);
           return (
-            <ProductText key={index} variant="body" color={color} style={{ fontSize, lineHeight }}>
-              {segment.value}
-            </ProductText>
-          );
-        }
-        if (!segment.value) return null;
-        const svg = renderMathSvg(segment.value, color, segment.display ? fontSize * 1.15 : fontSize);
-        if (!svg) {
-          return (
-            <ProductText key={index} variant="body" color={color} style={{ fontSize, lineHeight }}>
-              {segment.display ? `$$${segment.value}$$` : `$${segment.value}$`}
-            </ProductText>
+            <View key={index} style={styles.blockMath}>
+              {svg ? (
+                <SvgXml xml={svg.xml} width={svg.width} height={svg.height} />
+              ) : (
+                <ProductText variant="body" color={color} style={{ fontSize, lineHeight }}>
+                  {`$$${run.segment.value}$$`}
+                </ProductText>
+              )}
+            </View>
           );
         }
         return (
-          <View
-            key={index}
-            style={
-              segment.display
-                ? styles.blockMath
-                : [styles.inlineMath, { height: Math.max(lineHeight, svg.height) }]
-            }
-          >
-            <SvgXml xml={svg.xml} width={svg.width} height={svg.height} />
-          </View>
+          <ProductText key={index} variant="body" color={color} style={{ fontSize, lineHeight }}>
+            {run.segments.map((segment, segIndex) => {
+              if (segment.type === 'text') return segment.value || null;
+              if (!segment.value) return null;
+              const svg = renderMathSvg(segment.value, color, fontSize);
+              if (!svg) return `$${segment.value}$`;
+              return (
+                <SvgXml
+                  key={segIndex}
+                  xml={svg.xml}
+                  width={svg.width}
+                  height={svg.height}
+                  style={styles.inlineMath}
+                />
+              );
+            })}
+          </ProductText>
         );
       })}
     </View>
@@ -104,7 +135,6 @@ export function MathText({ text, color, fontSize = 14 }: { text: string; color: 
 }
 
 const styles = StyleSheet.create({
-  wrap: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center' },
-  inlineMath: { justifyContent: 'center', marginHorizontal: 2 },
+  inlineMath: { marginHorizontal: 2, verticalAlign: 'middle' },
   blockMath: { width: '100%', paddingVertical: 6, alignItems: 'center' },
 });
